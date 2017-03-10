@@ -16,6 +16,7 @@ defmodule MusicCast.Mixfile do
   end
 
   defp deps do
-    []
+    [{:httpoison, "~> 0.11"},
+     {:poison, "~> 3.1"}]
   end
 end
