@@ -7,6 +7,8 @@ defmodule MusicCast.Application do
     import Supervisor.Spec, warn: false
 
     children = [
+    # supervisor(MusicCast.Network, []),
+      worker(MusicCast.SSDPClient, []),
     ]
 
     opts = [strategy: :one_for_one, name: MusicCast.Supervisor]

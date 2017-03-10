@@ -17,6 +17,7 @@ defmodule MusicCast.Mixfile do
 
   defp deps do
     [{:httpoison, "~> 0.11"},
-     {:poison, "~> 3.1"}]
+     {:poison, "~> 3.1"},
+     {:sweet_xml, "~> 0.6"}]
   end
 end
