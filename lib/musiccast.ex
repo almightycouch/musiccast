@@ -1,0 +1,2 @@
+defmodule MusicCast do
+end
