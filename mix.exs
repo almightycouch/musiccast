@@ -3,6 +3,7 @@ defmodule MusicCast.Mixfile do
 
   def project do
     [app: :musiccast,
+     name: "Yamaha MusicCast™",
      version: "0.1.0",
      elixir: "~> 1.4",
      build_embedded: Mix.env == :prod,
@@ -18,6 +19,7 @@ defmodule MusicCast.Mixfile do
   defp deps do
     [{:httpoison, "~> 0.11"},
      {:poison, "~> 3.1"},
-     {:sweet_xml, "~> 0.6"}]
+     {:sweet_xml, "~> 0.6"},
+     {:ex_doc, "~> 0.14", only: :dev, runtime: false}]
   end
 end

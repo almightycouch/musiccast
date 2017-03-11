@@ -16,6 +16,7 @@ defmodule MusicCast.SSDPClient do
   @doc """
   Starts a SSDP client as part of a supervision tree.
   """
+  @spec start_link(Keyword.t) :: GenServer.on_start
   def start_link(options \\ []) do
     options = Keyword.put(options, :name, __MODULE__)
     GenServer.start_link(__MODULE__, [], options)
@@ -24,6 +25,7 @@ defmodule MusicCast.SSDPClient do
   @doc """
   Broadcasts a SSDP `M-SEARCH` request on the local network.
   """
+  @spec discover() :: :ok
   def discover do
     GenServer.cast(__MODULE__, :discover)
   end

@@ -10,6 +10,7 @@ defmodule MusicCast.Network do
   @doc """
   Starts a network as part of a supervision tree.
   """
+  @spec start_link(Keyword.t) :: Supervisor.on_start
   def start_link(options \\ []) do
     options = Keyword.put(options, :name, __MODULE__)
     Supervisor.start_link(__MODULE__, [], options)
@@ -18,6 +19,7 @@ defmodule MusicCast.Network do
   @doc """
   Adds a new device to the network.
   """
+  @spec add_device(MusicCast.Network.Entity.ip_address) :: Supervisor.on_start_child
   def add_device(addr) do
     Supervisor.start_child(__MODULE__, [addr])
   end
@@ -25,6 +27,7 @@ defmodule MusicCast.Network do
   @doc """
   Returns the PID for the registered device id.
   """
+  @spec whereis(MusicCast.Network.Entity.device_id) :: pid | nil
   def whereis(device_id) do
     case Registry.lookup(MusicCast.Registry, device_id) do
       [{pid, _}] -> pid
@@ -33,12 +36,17 @@ defmodule MusicCast.Network do
   end
 
   @doc """
-  Returns a list of all registered devices on the network.
+  Returns a list of all registered devices.
   """
+  @spec which_devices() :: [pid]
   def which_devices do
     Enum.map(Supervisor.which_children(__MODULE__), &elem(&1, 1))
   end
 
+  @doc """
+  Returns a list of all registered devices and their attributes.
+  """
+  @spec which_devices(MusicCast.Network.Entity.lookup_opts) :: [tuple]
   def which_devices(lookup_keys) do
     Enum.map(which_devices(), &Tuple.append(Entity.lookup(&1, lookup_keys), &1))
   end

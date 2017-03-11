@@ -1,6 +1,6 @@
 defmodule MusicCast.Network.Entity do
   @moduledoc """
-  A module for working with MusicCast entities.
+  A module for managing MusicCast enabled devices.
   """
 
   use GenServer
@@ -15,9 +15,17 @@ defmodule MusicCast.Network.Entity do
             status: nil,
             playback: nil
 
+  @type ip_address :: {0..255, 0..255, 0..255, 0..255}
+
+  @type device_id :: String.t
+
+  @type lookup_opt :: :host | :device_id | :network_name | :status | :playback
+  @type lookup_opts :: [lookup_opt] | lookup_opt
+
   @doc """
   Starts an entity as part of a supervision tree.
   """
+  @spec start_link(ip_address, Keyword.t) :: GenServer.on_start
   def start_link(addr, options \\ []) do
     GenServer.start_link(__MODULE__, addr, options)
   end
@@ -25,6 +33,7 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Looks-up the value for the given key(s).
   """
+  @spec lookup(GenServer.server, lookup_opts) :: tuple
   def lookup(pid, keys) do
     GenServer.call(pid, {:lookup, keys})
   end
