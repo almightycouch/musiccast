@@ -33,7 +33,7 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Looks-up the value for the given key(s).
   """
-  @spec lookup(GenServer.server, lookup_opts) :: tuple
+  @spec lookup(GenServer.server, lookup_opts) :: [term] | term
   def lookup(pid, keys) do
     GenServer.call(pid, {:lookup, keys})
   end
@@ -61,7 +61,9 @@ defmodule MusicCast.Network.Entity do
 
   def handle_call({:lookup, keys}, _from, state) do
     attrs = for key <- List.wrap(keys), Map.has_key?(state, key), do: Map.fetch!(state, key)
-    {:reply, List.to_tuple(attrs), state}
+    if is_list(keys),
+      do: {:reply, attrs, state},
+    else: {:reply, List.first(attrs), state}
   end
 
   #

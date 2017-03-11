@@ -47,8 +47,8 @@ defmodule MusicCast.Network do
   Returns a list of all registered devices and their attributes.
   """
   @spec which_devices(MusicCast.Network.Entity.lookup_opts) :: [tuple]
-  def which_devices(lookup_keys) do
-    Enum.map(which_devices(), &Tuple.append(Entity.lookup(&1, lookup_keys), &1))
+  def which_devices(keys) do
+    Enum.map(which_devices(), &lookup(&1, keys))
   end
 
   #
@@ -58,5 +58,17 @@ defmodule MusicCast.Network do
   def init([]) do
     children = List.wrap(worker(Entity, []))
     supervise(children, strategy: :simple_one_for_one)
+  end
+
+  #
+  # Helpers
+  #
+
+  defp lookup(pid, keys) do
+    pid
+    |> Entity.lookup(keys)
+    |> List.wrap()
+    |> List.to_tuple()
+    |> Tuple.insert_at(0, pid)
   end
 end
