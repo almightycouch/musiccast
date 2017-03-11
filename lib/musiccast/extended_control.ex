@@ -33,7 +33,7 @@ defmodule MusicCast.ExtendedControl do
 
   Actual operations/reactions of enabling auto power standby depend on each device.
   """
-  def set_auto_power_standby(host, enable, options \\ []), do: request_api(host, "/system/setAutoPowerStandby", Keyword.put(options, :query, %{enable: enable}))
+  def set_auto_power_standby(host, enable, options \\ []), do: request_api(host, "/system/setAutoPowerStandby", Keyword.put(options, :params, %{enable: enable}))
 
   @doc """
   Returns location information.
@@ -48,7 +48,7 @@ defmodule MusicCast.ExtendedControl do
 
   Refer to each device’s IR code list for details.
   """
-  def send_ir_code(host, code, options \\ []), do: request_api(host, "/system/sendIrCode", Keyword.put(options, :query, %{code: code}))
+  def send_ir_code(host, code, options \\ []), do: request_api(host, "/system/sendIrCode", Keyword.put(options, :params, %{code: code}))
 
   @doc """
   Returns basic information for the given zone.
@@ -71,7 +71,7 @@ defmodule MusicCast.ExtendedControl do
   """
   def set_power(host, power, options \\ []) do
     {zone, options} = Keyword.pop(options, :zone, "main")
-    request_api(host, "/#{zone}/setPower", Keyword.put(options, :query, %{power: power}))
+    request_api(host, "/#{zone}/setPower", Keyword.put(options, :params, %{power: power}))
   end
 
   @doc """
@@ -79,7 +79,7 @@ defmodule MusicCast.ExtendedControl do
   """
   def set_sleep(host, sleep, options \\ []) do
     {zone, options} = Keyword.pop(options, :zone, "main")
-    request_api(host, "/#{zone}/setSleep", Keyword.put(options, :query, %{sleep: sleep}))
+    request_api(host, "/#{zone}/setSleep", Keyword.put(options, :params, %{sleep: sleep}))
   end
 
   @doc """
@@ -87,7 +87,7 @@ defmodule MusicCast.ExtendedControl do
   """
   def set_volume(host, volume, options \\ []) do
     {zone, options} = Keyword.pop(options, :zone, "main")
-    request_api(host, "/#{zone}/setVolume", Keyword.put(options, :query, %{volume: volume}))
+    request_api(host, "/#{zone}/setVolume", Keyword.put(options, :params, %{volume: volume}))
   end
 
   @doc """
@@ -95,7 +95,7 @@ defmodule MusicCast.ExtendedControl do
   """
   def set_mute(host, enable, options \\ []) do
     {zone, options} = Keyword.pop(options, :zone, "main")
-    request_api(host, "/#{zone}/setMute", Keyword.put(options, :query, %{enable: enable}))
+    request_api(host, "/#{zone}/setMute", Keyword.put(options, :params, %{enable: enable}))
   end
 
   @doc """
@@ -103,7 +103,7 @@ defmodule MusicCast.ExtendedControl do
   """
   def set_input(host, input, options \\ []) do
     {zone, options} = Keyword.pop(options, :zone, "main")
-    request_api(host, "/#{zone}/setInput", Keyword.put(options, :query, %{input: input}))
+    request_api(host, "/#{zone}/setInput", Keyword.put(options, :params, %{input: input}))
   end
 
   @doc """
@@ -111,7 +111,7 @@ defmodule MusicCast.ExtendedControl do
   """
   def set_sound_program(host, program, options \\ []) do
     {zone, options} = Keyword.pop(options, :zone, "main")
-    request_api(host, "/#{zone}/setSoundProgram", Keyword.put(options, :query, %{program: program}))
+    request_api(host, "/#{zone}/setSoundProgram", Keyword.put(options, :params, %{program: program}))
   end
 
   @doc """
@@ -121,7 +121,7 @@ defmodule MusicCast.ExtendedControl do
   """
   def prepare_input_change(host, input, options \\ []) do
     {zone, options} = Keyword.pop(options, :zone, "main")
-    request_api(host, "/#{zone}/prepareInputChange", Keyword.put(options, :query, %{input: input}))
+    request_api(host, "/#{zone}/prepareInputChange", Keyword.put(options, :params, %{input: input}))
   end
 
   #
@@ -133,7 +133,7 @@ defmodule MusicCast.ExtendedControl do
   """
   def get_tuner_preset_info(host, options \\ []) do
     {band, options} = Keyword.pop(options, :band, "fm")
-    request_api(host, "/tuner/getPresetInfo", Keyword.put(options, :query, %{band: band}))
+    request_api(host, "/tuner/getPresetInfo", Keyword.put(options, :params, %{band: band}))
   end
 
   @doc """
@@ -147,12 +147,12 @@ defmodule MusicCast.ExtendedControl do
   def set_tuner_freq(host, freq, options \\ [])
   def set_tuner_freq(host, freq, options) when is_integer(freq) do
     {band, options} = Keyword.pop(options, :band, "fm")
-    request_api(host, "/tuner/setFreq", Keyword.put(options, :query, %{band: band, tuning: "direct", num: freq}))
+    request_api(host, "/tuner/setFreq", Keyword.put(options, :params, %{band: band, tuning: "direct", num: freq}))
   end
 
   def set_tuner_freq(host, freq, options) do
     {band, options} = Keyword.pop(options, :band, "fm")
-    request_api(host, "/tuner/setFreq", Keyword.put(options, :query, %{band: band, tuning: freq}))
+    request_api(host, "/tuner/setFreq", Keyword.put(options, :params, %{band: band, tuning: freq}))
   end
 
   @doc """
@@ -161,7 +161,7 @@ defmodule MusicCast.ExtendedControl do
   def recall_tuner_preset(host, num, options \\ []) do
     {zone, options} = Keyword.pop(options, :zone, "main")
     {band, options} = Keyword.pop(options, :band, "fm")
-    request_api(host, "/tuner/recallPreset", Keyword.put(options, :query, %{zone: zone, band: band, num: num}))
+    request_api(host, "/tuner/recallPreset", Keyword.put(options, :params, %{zone: zone, band: band, num: num}))
   end
 
   @doc """
@@ -171,20 +171,20 @@ defmodule MusicCast.ExtendedControl do
   """
   def switch_tuner_preset(host, options \\ []) do
     {dir, options} = Keyword.pop(options, :dir, "next")
-    request_api(host, "/tuner/switchPreset", Keyword.put(options, :query, %{dir: dir}))
+    request_api(host, "/tuner/switchPreset", Keyword.put(options, :params, %{dir: dir}))
   end
 
   @doc """
   Stores current tuner station to a preset.
   """
-  def store_tuner_preset(host, num, options \\ []), do: request_api(host, "/tuner/storePreset", Keyword.put(options, :query, %{num: num}))
+  def store_tuner_preset(host, num, options \\ []), do: request_api(host, "/tuner/storePreset", Keyword.put(options, :params, %{num: num}))
 
   @doc """
   Sets tuner DAB service.
   """
   def set_tuner_dab_service(host, options \\ []) do
     {dir, options} = Keyword.pop(options, :dir, "next")
-    request_api(host, "/tuner/setDabService", Keyword.put(options, :query, %{dir: dir}))
+    request_api(host, "/tuner/setDabService", Keyword.put(options, :params, %{dir: dir}))
   end
 
   #
@@ -204,7 +204,7 @@ defmodule MusicCast.ExtendedControl do
   @doc """
   Sets playback status.
   """
-  def set_playback(host, playback, options \\ []), do: request_api(host, "/netusb/setPlayback", Keyword.put(options, :query, %{playback: playback}))
+  def set_playback(host, playback, options \\ []), do: request_api(host, "/netusb/setPlayback", Keyword.put(options, :params, %{playback: playback}))
 
   @doc """
   Toggles repeat setting.
@@ -225,13 +225,13 @@ defmodule MusicCast.ExtendedControl do
   def get_list_info(host, input, options \\ []) do
     {offset, options} = Keyword.pop(options, :offset, 0)
     {limit, options} = Keyword.pop(options, :limit, 8)
-    request_api(host, "/netusb/getListInfo", Keyword.put(options, :query, %{input: input, index: offset, size: limit}))
+    request_api(host, "/netusb/getListInfo", Keyword.put(options, :params, %{input: input, index: offset, size: limit}))
   end
 
   @doc """
   Executes a list control command.
   """
-  def set_list_control(host, type, options \\ []), do: request_api(host, "/netusb/setListControl", Keyword.put(options, :query, %{type: type}))
+  def set_list_control(host, type, options \\ []), do: request_api(host, "/netusb/setListControl", Keyword.put(options, :params, %{type: type}))
 
   @doc """
   Search for the given string.
@@ -243,13 +243,13 @@ defmodule MusicCast.ExtendedControl do
   """
   def recall_preset(host, num, options \\ []) do
     {zone, options} = Keyword.pop(options, :zone, "main")
-    request_api(host, "/netusb/recallPreset", Keyword.put(options, :query, %{zone: zone, num: num}))
+    request_api(host, "/netusb/recallPreset", Keyword.put(options, :params, %{zone: zone, num: num}))
   end
 
   @doc """
   Stores current content to a preset.
   """
-  def store_preset(host, num, options \\ []), do: request_api(host, "/netusb/storePreset", Keyword.put(options, :query, %{num: num}))
+  def store_preset(host, num, options \\ []), do: request_api(host, "/netusb/storePreset", Keyword.put(options, :params, %{num: num}))
 
   @doc """
   Returns account information registered on a device.
@@ -259,12 +259,12 @@ defmodule MusicCast.ExtendedControl do
   @doc """
   Returns account information registered on a device.
   """
-  def switch_account(host, input, index, options \\ []), do: request_api(host, "/netusb/switchAccount", Keyword.put(options, :query, %{input: input, index: index}))
+  def switch_account(host, input, index, options \\ []), do: request_api(host, "/netusb/switchAccount", Keyword.put(options, :params, %{input: input, index: index}))
 
   @doc """
   Returns account information registered on a device.
   """
-  def get_service_info(host, input, type, options \\ []), do: request_api(host, "/netusb/getServiceInfo", Keyword.put(options, :query, %{input: input, type: type}))
+  def get_service_info(host, input, type, options \\ []), do: request_api(host, "/netusb/getServiceInfo", Keyword.put(options, :params, %{input: input, type: type}))
 
   #
   # CD
@@ -278,7 +278,7 @@ defmodule MusicCast.ExtendedControl do
   @doc """
   Sets CD playback status.
   """
-  def set_cd_playback(host, playback, options \\ []), do: request_api(host, "/cd/setPlayback", Keyword.put(options, :query, %{playback: playback}))
+  def set_cd_playback(host, playback, options \\ []), do: request_api(host, "/cd/setPlayback", Keyword.put(options, :params, %{playback: playback}))
 
   @doc """
   Toggles CD tray setting.
@@ -302,9 +302,10 @@ defmodule MusicCast.ExtendedControl do
 
   defp request_api(host, path, options) do
     {method, options}    = Keyword.pop(options, :method, :get)
+    {headers, options}   = Keyword.pop(options, :headers, [])
     {base_path, options} = Keyword.pop(options, :base_path, @base_path)
 
-    case HTTPoison.request(method, host <> base_path <> path, options) do
+    case HTTPoison.request(method, host <> base_path <> path, "", headers, options) do
       {:ok, %HTTPoison.Response{body: body, status_code: status}} when status in 200..299 ->
         with {:ok, response} <- Poison.decode(body),
              {:ok, response} <- process_response_code(response), do:
