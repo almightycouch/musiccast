@@ -43,8 +43,12 @@ defmodule MusicCast.Network.Entity do
   #
 
   def init(addr) do
+    headers = [
+      {"X-AppName", "MusicCast/1.50"},
+      {"X-AppPort", 41100}
+    ]
     with host <- to_string(:inet_parse.ntoa(addr)),
-         {:ok, %{"device_id" => device_id}} <- YXC.get_device_info(host),
+         {:ok, %{"device_id" => device_id}} <- YXC.get_device_info(host, headers: headers),
          {:ok, %{"network_name" => network_name}} <- YXC.get_network_status(host),
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
@@ -64,6 +68,10 @@ defmodule MusicCast.Network.Entity do
     if is_list(keys),
       do: {:reply, attrs, state},
     else: {:reply, List.first(attrs), state}
+  end
+
+  def handle_info({:yxc_event, _payload}, state) do
+    {:noreply, state}
   end
 
   #

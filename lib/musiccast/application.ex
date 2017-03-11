@@ -10,6 +10,7 @@ defmodule MusicCast.Application do
       supervisor(MusicCast.Network, []),
       supervisor(Registry, [:unique, MusicCast.Registry]),
       worker(MusicCast.SSDPClient, []),
+      worker(MusicCast.Network.EventListener, []),
     ]
 
     opts = [strategy: :one_for_one, name: MusicCast.Supervisor]
