@@ -1,6 +1,6 @@
 defmodule MusicCast.Network.EventListener do
   @moduledoc """
-  A module for receiving Yamaha Extended Control (YXC) unicast events.
+  A module for receiving Yamaha Extended Control (YXC) Unicast events.
   """
 
   use GenServer
@@ -13,6 +13,24 @@ defmodule MusicCast.Network.EventListener do
     options = Keyword.put(options, :name, __MODULE__)
 	GenServer.start_link(__MODULE__, [], options)
   end
+
+  @doc """
+  Subscribes the current process to a device changefeed.
+  """
+  @spec subscribe(MusicCast.Network.Entity.device_id, Keyword.t) :: {:ok, pid} | {:error, {:already_registered, pid}}
+  def subscribe(device_id, options \\ []) do
+    zone = Keyword.get(options, :zone)
+    Registry.register(MusicCast.PubSub, device_id, zone)
+  end
+
+  @doc """
+  Unsubscribes the current process from a device changefeed.
+  """
+  @spec unsubscribe(MusicCast.Network.Entity.device_id) :: :ok
+  def unsubscribe(device_id) do
+    Registry.unregister(MusicCast.PubSub, device_id)
+  end
+
 
   #
   # Callbacks
@@ -37,8 +55,10 @@ defmodule MusicCast.Network.EventListener do
   #
 
   defp dispatch(payload) do
-    if pid = MusicCast.Network.whereis(payload["device_id"]) do
-      send(pid, {:yxc_event, payload})
-    end
+    Registry.dispatch(MusicCast.PubSub, payload["device_id"], fn subscribers ->
+      for {pid, zone} <- subscribers, is_nil(zone) || Map.has_key?(payload, zone) do
+        send(pid, {:yxc_event, payload})
+      end
+    end)
   end
 end

@@ -17,4 +17,10 @@ defmodule MusicCast do
 
   @spec which_devices(MusicCast.Network.Entity.lookup_opts) :: [tuple]
   defdelegate which_devices(lookup_keys), to: MusicCast.Network
+
+  @spec subscribe(MusicCast.Network.Entity.device_id, Keyword.t) :: {:ok, pid} | {:error, {:already_registered, pid}}
+  defdelegate subscribe(device_id, options \\ []), to: MusicCast.Network.EventListener
+
+  @spec unsubscribe(MusicCast.Network.Entity.device_id) :: :ok
+  defdelegate unsubscribe(device_id), to: MusicCast.Network.EventListener
 end
