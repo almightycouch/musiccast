@@ -7,7 +7,8 @@ defmodule MusicCast.Application do
     import Supervisor.Spec, warn: false
 
     children = [
-    # supervisor(MusicCast.Network, []),
+      supervisor(MusicCast.Network, []),
+      supervisor(Registry, [:unique, MusicCast.Registry]),
       worker(MusicCast.SSDPClient, []),
     ]
 

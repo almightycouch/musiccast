@@ -5,15 +5,13 @@ defmodule MusicCast.SSDPClient do
 
   use GenServer
 
+  import SweetXml
+
   @ssdp_st "upnp:rootdevice"
   @ssdp_mx 2
 
-  @multicast_host {239, 255, 255, 250}
+  @multicast_addr {239, 255, 255, 250}
   @multicast_port 1900
-
-  import SweetXml
-
-  require Logger
 
   @doc """
   Starts a SSDP client as part of a supervision tree.
@@ -37,7 +35,7 @@ defmodule MusicCast.SSDPClient do
   def init([]) do
     udp_options = [
       :binary,
-      add_membership: { @multicast_host, {0, 0, 0, 0}},
+      add_membership: { @multicast_addr, {0, 0, 0, 0}},
       multicast_if: {0, 0, 0, 0},
       multicast_loop: false,
       multicast_ttl: 2,
@@ -53,7 +51,7 @@ defmodule MusicCast.SSDPClient do
   end
 
   def handle_cast(:discover, state) do
-    case :gen_udp.send(state.sock, @multicast_host, @multicast_port, search_msg(@ssdp_st, @ssdp_mx)) do
+    case :gen_udp.send(state.sock, @multicast_addr, @multicast_port, search_msg(@ssdp_st, @ssdp_mx)) do
       :ok ->
         {:noreply, state}
       {:error, reason} ->
@@ -61,7 +59,7 @@ defmodule MusicCast.SSDPClient do
     end
   end
 
-  def handle_info({:udp, _sock, host, _port, packet}, %{devices: devices} = state) do
+  def handle_info({:udp, _sock, addr, _port, packet}, %{devices: devices} = state) do
     devices =
       if ssdp_msg = parse_ssdp_packet(packet) do
         target = ssdp_msg[:st] || ssdp_msg[:nt]
@@ -69,7 +67,7 @@ defmodule MusicCast.SSDPClient do
           uuid = parse_ssdp_uuid(ssdp_msg)
           unless Map.has_key?(devices, uuid) do
             if info = request_device_info(ssdp_msg.location) do
-            # MusicCast.Network.add_entity(host)
+              MusicCast.Network.add_device(addr)
               Map.put(devices, uuid, info.device)
             end
           end
@@ -93,7 +91,7 @@ defmodule MusicCast.SSDPClient do
 
   defp search_msg(search_target, max_seconds) do
     ["M-SEARCH * HTTP/1.1\r\n",
-     "Host: #{:inet_parse.ntoa(@multicast_host)}:#{@multicast_port}\r\n",
+     "Host: #{:inet_parse.ntoa(@multicast_addr)}:#{@multicast_port}\r\n",
      "MAN: \"ssdp:discover\"\r\n",
      "ST: #{search_target}\r\n",
      "MX: #{max_seconds}\r\n", "\r\n"]
