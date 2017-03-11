@@ -1,6 +1,6 @@
 defmodule MusicCast.SSDPClient do
   @moduledoc """
-  A basic SSDP client module for device-discovery on the local network.
+  A basic SSDP client module for discovery on the local network.
   """
 
   use GenServer
@@ -46,7 +46,7 @@ defmodule MusicCast.SSDPClient do
 
     case :gen_udp.open(@multicast_port, udp_options) do
       {:ok, sock} ->
-        {:ok, %{sock: sock, devices: %{}}}
+        {:ok, %{sock: sock, uuids: MapSet.new()}}
       {:error, reason} ->
         {:stop, reason}
     end
@@ -61,26 +61,30 @@ defmodule MusicCast.SSDPClient do
     end
   end
 
-  def handle_info({:udp, _sock, addr, _port, packet}, %{devices: devices} = state) do
-    devices =
+  def handle_info({:udp, _sock, addr, _port, packet}, %{uuids: uuids} = state) do
+    uuids =
       if ssdp_msg = parse_ssdp_packet(packet) do
         target = ssdp_msg[:st] || ssdp_msg[:nt]
         if target == @ssdp_st do
           uuid = parse_ssdp_uuid(ssdp_msg)
-          unless Map.has_key?(devices, uuid) do
+          unless MapSet.member?(uuids, uuid) do
             if info = request_device_info(ssdp_msg.location) do
-              MusicCast.Network.add_device(addr)
-              Map.put(devices, uuid, info.device)
+              mount_device(addr, info.device)
+              MapSet.put(uuids, uuid)
             end
           end
         end
-      end || devices
-    {:noreply, %{state | devices: devices}}
+      end || uuids
+    {:noreply, %{state | uuids: uuids}}
   end
 
   #
   # Helpers
   #
+
+  defp mount_device(addr, _device) do
+    MusicCast.Network.add_device(addr)
+  end
 
   defp request_device_info(url) do
     case HTTPoison.get(url) do
