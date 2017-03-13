@@ -318,7 +318,7 @@ defmodule MusicCast.ExtendedControl do
   end
 
   defp process_response_code(%{"response_code" => 0} = response) do
-    {:ok, response}
+    {:ok, Map.drop(response, ["response_code"])}
   end
 
   defp process_response_code(%{"response_code" => response_code}) do
