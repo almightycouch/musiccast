@@ -37,8 +37,8 @@ defmodule MusicCast.Network.EventListener do
   #
 
   defp dispatch(payload) do
-    if pid = MusicCast.Network.whereis(payload["device_id"]) do
-      send(pid, {:yxc_event, payload})
+    if {pid, _host} = MusicCast.Network.whereis(payload["device_id"]) do
+      send(pid, {:yxc_event, Map.drop(payload, ["device_id"])})
     end
   end
 end
