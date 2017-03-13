@@ -42,9 +42,7 @@ defmodule MusicCast.Network.Entity do
   Sets the volume for the entity.
   """
   @spec set_volume(GenServer.server, integer) :: :ok | {:error, atom}
-  def set_volume(pid, volume) do
-    GenServer.call(pid, {:set_volume, volume})
-  end
+  def set_volume(pid, volume), do: call(pid, :set_volume, volume)
 
   #
   # Callbacks
@@ -78,8 +76,8 @@ defmodule MusicCast.Network.Entity do
     else: {:reply, List.first(attrs), state}
   end
 
-  def handle_call({:set_volume, volume}, _from, state) do
-    case YXC.set_volume(state.host, volume) do
+  def handle_call({:yxc_apply, {fun, args}}, _from, state) do
+    case apply(YXC, fun, [state.host|args]) do
       {:ok, _resp} ->
         {:reply, :ok, state}
       {:error, reason} ->
@@ -101,5 +99,9 @@ defmodule MusicCast.Network.Entity do
 
   defp register_device(device_id, addr) do
     Registry.register(MusicCast.Registry, device_id, addr)
+  end
+
+  defp call(pid, fun, args) do
+    GenServer.call(pid, {:yxc_apply, {fun, List.wrap(args)}})
   end
 end
