@@ -87,7 +87,11 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
-  def handle_info({:yxc_event, _payload}, state) do
+  def handle_info({:yxc_event, payload}, state) do
+    state =
+      if changes = payload["main"] do
+        update_in(state.status, &Map.merge(&1, changes))
+      end
     {:noreply, state}
   end
 
