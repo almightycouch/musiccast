@@ -31,11 +31,19 @@ defmodule MusicCast.Network.Entity do
   end
 
   @doc """
-  Looks-up the value for the given key(s).
+  Looks-up the value(s) for the given key(s).
   """
   @spec lookup(GenServer.server, lookup_opts) :: [term] | term
   def lookup(pid, keys) do
     GenServer.call(pid, {:lookup, keys})
+  end
+
+  @doc """
+  Sets the volume for the entity.
+  """
+  @spec set_volume(GenServer.server, integer) :: :ok | {:error, atom}
+  def set_volume(pid, volume) do
+    GenServer.call(pid, {:set_volume, volume})
   end
 
   #
@@ -68,6 +76,15 @@ defmodule MusicCast.Network.Entity do
     if is_list(keys),
       do: {:reply, attrs, state},
     else: {:reply, List.first(attrs), state}
+  end
+
+  def handle_call({:set_volume, volume}, _from, state) do
+    case YXC.set_volume(state.host, volume) do
+      {:ok, _resp} ->
+        {:reply, :ok, state}
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
   end
 
   def handle_info({:yxc_event, _payload}, state) do
