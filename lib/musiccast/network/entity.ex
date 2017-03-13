@@ -52,8 +52,7 @@ defmodule MusicCast.Network.Entity do
          {:ok, %{"network_name" => network_name}} <- YXC.get_network_status(host),
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
-         {:ok, _} <- Registry.register(MusicCast.Registry, device_id, nil),
-         {:ok, _} <- MusicCast.Network.EventListener.subscribe(device_id) do
+         {:ok, _} <- register_device(device_id, addr) do
       {:ok, %__MODULE__{host: host,
                         device_id: device_id,
                         network_name: network_name,
@@ -73,5 +72,13 @@ defmodule MusicCast.Network.Entity do
 
   def handle_info({:yxc_event, _payload}, state) do
     {:noreply, state}
+  end
+
+  #
+  # Helpers
+  #
+
+  defp register_device(device_id, _addr) do
+    Registry.register(MusicCast.Registry, device_id, nil)
   end
 end

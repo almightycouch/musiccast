@@ -9,7 +9,6 @@ defmodule MusicCast.Application do
     children = [
       supervisor(MusicCast.Network, []),
       supervisor(Registry, [:unique, MusicCast.Registry]),
-      supervisor(Registry, [:duplicate, MusicCast.PubSub], id: :pubsub),
       worker(MusicCast.SSDPClient, []),
       worker(MusicCast.Network.EventListener, []),
     ]
