@@ -27,10 +27,10 @@ defmodule MusicCast.Network do
   @doc """
   Returns the PID for the registered device id.
   """
-  @spec whereis(MusicCast.Network.Entity.device_id) :: pid | nil
+  @spec whereis(MusicCast.Network.Entity.device_id) :: {pid, MusicCast.Network.Entity.ip_address} | nil
   def whereis(device_id) do
     case Registry.lookup(MusicCast.Registry, device_id) do
-      [{pid, _}] -> pid
+      [pair] -> pair
       [] -> nil
     end
   end

@@ -78,7 +78,7 @@ defmodule MusicCast.Network.Entity do
   # Helpers
   #
 
-  defp register_device(device_id, _addr) do
-    Registry.register(MusicCast.Registry, device_id, nil)
+  defp register_device(device_id, addr) do
+    Registry.register(MusicCast.Registry, device_id, addr)
   end
 end
