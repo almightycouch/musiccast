@@ -85,7 +85,7 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
-  def handle_info({:yxc_event, payload}, state) do
+  def handle_info({:extended_control, payload}, state) do
     new_state = update_state(state, payload["main"])
     IO.inspect diff_state(Map.from_struct(state), Map.from_struct(new_state))
     {:noreply, new_state}
