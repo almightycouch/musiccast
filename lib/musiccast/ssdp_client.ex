@@ -46,7 +46,7 @@ defmodule MusicCast.SSDPClient do
 
     case :gen_udp.open(@multicast_port, udp_options) do
       {:ok, sock} ->
-        {:ok, %{sock: sock, uuids: MapSet.new()}}
+        {:ok, %{sock: sock, entities: %{}}}
       {:error, reason} ->
         {:stop, reason}
     end
@@ -61,21 +61,24 @@ defmodule MusicCast.SSDPClient do
     end
   end
 
-  def handle_info({:udp, _sock, addr, _port, packet}, %{uuids: uuids} = state) do
-    uuids =
+  def handle_info({:udp, _sock, addr, _port, packet}, %{entities: entities} = state) do
+    entities =
       if ssdp_msg = parse_ssdp_packet(packet) do
         target = ssdp_msg[:st] || ssdp_msg[:nt]
         if target == @ssdp_st do
-          uuid = parse_ssdp_uuid(ssdp_msg)
-          unless MapSet.member?(uuids, uuid) do
+          Map.put_new_lazy(entities, addr, fn ->
             if info = request_device_info(ssdp_msg.location) do
               mount_device(addr, info.device)
-              MapSet.put(uuids, uuid)
             end
-          end
+          end)
         end
-      end || uuids
-    {:noreply, %{state | uuids: uuids}}
+      end || entities
+    {:noreply, %{state | entities: entities}}
+  end
+
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, %{entities: entities} = state) do
+    entities = Enum.reject(entities, &elem(&1, 1) == ref)
+    {:noreply, %{state | entities: Map.new(entities)}}
   end
 
   #
@@ -83,7 +86,14 @@ defmodule MusicCast.SSDPClient do
   #
 
   defp mount_device(addr, _device) do
-    MusicCast.Network.add_device(addr)
+    case MusicCast.Network.add_device(addr) do
+      {:ok, pid} ->
+        Process.monitor(pid)
+      {:error, {:already_registered, pid}} ->
+        Process.monitor(pid)
+      {:error, _reason} ->
+        nil
+    end
   end
 
   defp request_device_info(url) do
@@ -110,12 +120,6 @@ defmodule MusicCast.SSDPClient do
     |> String.to_atom()
   end
 
-  defp parse_ssdp_uuid(ssdp_msg) do
-    ssdp_msg.usn
-    |> String.replace_suffix(ssdp_msg[:st] || ssdp_msg[:nt], "")
-    |> String.replace_suffix("::", "")
-  end
-
   defp parse_ssdp_packet(packet) do
     case packet do
       <<"HTTP/1.1 200 OK", body :: binary>> -> decode_ssdp_packet(body)
@@ -128,7 +132,7 @@ defmodule MusicCast.SSDPClient do
     packet
     |> String.split(["\r\n", "\n"])
     |> Enum.map(&String.split(&1, ":", parts: 2))
-    |> Enum.filter_map(& length(&1) == 2, fn[key, val] -> {atomize_string(key), String.strip(val)} end)
+    |> Enum.filter_map(& length(&1) == 2, fn [key, val] -> {atomize_string(key), String.strip(val)} end)
     |> Enum.into(%{})
   end
 
