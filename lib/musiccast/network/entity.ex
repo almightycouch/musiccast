@@ -33,16 +33,27 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Looks-up the value(s) for the given key(s).
   """
-  @spec lookup(GenServer.server, lookup_opts) :: [term] | term
-  def lookup(pid, keys) do
+  @spec __lookup__(GenServer.server, lookup_opts) :: [term] | term
+  def __lookup__(pid, keys) do
     GenServer.call(pid, {:lookup, keys})
   end
 
-  @doc """
-  Sets the volume for the entity.
-  """
-  @spec set_volume(GenServer.server, integer) :: :ok | {:error, atom}
-  def set_volume(pid, volume), do: request(pid, :set_volume, volume)
+  for {fun, arity} <- MusicCast.ExtendedControl.__info__(:functions), !String.starts_with?(to_string(fun), "get_") do
+#   Enum.each(Code.get_docs(MusicCast.ExtendedControl, :docs), fn
+#     {{^fun, ^arity} = tuple, _line, :def, signature, doc} ->
+#       Module.add_doc(__MODULE__, __ENV__.line, :def, tuple, signature, doc)
+#     _else -> false
+#   end)
+    args = Enum.map(1..arity, &Macro.var(:"arg#{&1}", __MODULE__))
+    @doc """
+    See `MusicCast.ExtendedControl.#{fun}/#{arity}`.
+    """
+    def unquote(fun)(unquote_splicing(args)) do
+      [pid|args] = unquote(args)
+      GenServer.call(pid, {:request, {unquote(fun), args}})
+    end
+  end
+
 
   #
   # Callbacks
@@ -87,17 +98,13 @@ defmodule MusicCast.Network.Entity do
 
   def handle_info({:unicast_event, payload}, state) do
     new_state = update_state(state, payload["main"])
-    broadcast_event(state.device_id, diff_state(Map.from_struct(state), Map.from_struct(new_state)))
+    broadcast_event(state.device_id, %{"changes" => diff_state(Map.from_struct(state), Map.from_struct(new_state))})
     {:noreply, new_state}
   end
 
   #
   # Helpers
   #
-
-  defp request(pid, fun, args) do
-    GenServer.call(pid, {:request, {fun, List.wrap(args)}})
-  end
 
   defp register_device(device_id, addr) do
     Registry.register(MusicCast.Registry, device_id, addr)

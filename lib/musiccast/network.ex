@@ -82,7 +82,7 @@ defmodule MusicCast.Network do
 
   defp lookup(pid, keys) do
     pid
-    |> Entity.lookup(keys)
+    |> Entity.__lookup__(keys)
     |> List.wrap()
     |> List.to_tuple()
     |> Tuple.insert_at(0, pid)
