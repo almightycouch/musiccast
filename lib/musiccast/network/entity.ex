@@ -87,7 +87,7 @@ defmodule MusicCast.Network.Entity do
 
   def handle_info({:unicast_event, payload}, state) do
     new_state = update_state(state, payload["main"])
-    IO.inspect diff_state(Map.from_struct(state), Map.from_struct(new_state))
+    broadcast_event(state.device_id, diff_state(Map.from_struct(state), Map.from_struct(new_state)))
     {:noreply, new_state}
   end
 
@@ -101,6 +101,12 @@ defmodule MusicCast.Network.Entity do
 
   defp register_device(device_id, addr) do
     Registry.register(MusicCast.Registry, device_id, addr)
+  end
+
+  defp broadcast_event(device_id, event) do
+    Registry.dispatch(MusicCast.PubSub, device_id, fn subscribers ->
+      for {pid, nil} <- subscribers, do: send(pid, {:extended_control, device_id, event})
+    end)
   end
 
   defp update_state(state, %{"signal_info_updated" => true} = event) do

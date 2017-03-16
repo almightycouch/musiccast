@@ -9,6 +9,12 @@ defmodule MusicCast do
   @spec discover() :: :ok
   defdelegate discover, to: MusicCast.SSDPClient
 
+  @spec subscribe(MusicCast.Network.Entity.device_id) :: {:ok, pid} | {:error, {:already_registered, pid}}
+  defdelegate subscribe(device_id), to: MusicCast.Network
+
+  @spec unsubscribe(MusicCast.Network.Entity.device_id) :: :ok
+  defdelegate unsubscribe(device_id), to: MusicCast.Network
+
   @spec whereis(MusicCast.Network.Entity.device_id) :: pid | nil
   defdelegate whereis(device_id), to: MusicCast.Network
 
