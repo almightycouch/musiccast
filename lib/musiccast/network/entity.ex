@@ -42,7 +42,7 @@ defmodule MusicCast.Network.Entity do
   Sets the volume for the entity.
   """
   @spec set_volume(GenServer.server, integer) :: :ok | {:error, atom}
-  def set_volume(pid, volume), do: call(pid, :set_volume, volume)
+  def set_volume(pid, volume), do: request(pid, :set_volume, volume)
 
   #
   # Callbacks
@@ -76,7 +76,7 @@ defmodule MusicCast.Network.Entity do
     else: {:reply, List.first(attrs), state}
   end
 
-  def handle_call({:yxc_apply, {fun, args}}, _from, state) do
+  def handle_call({:request, {fun, args}}, _from, state) do
     case apply(YXC, fun, [state.host|args]) do
       {:ok, _resp} ->
         {:reply, :ok, state}
@@ -86,22 +86,48 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_info({:yxc_event, payload}, state) do
-    state =
-      if changes = payload["main"] do
-        update_in(state.status, &Map.merge(&1, changes))
-      end
-    {:noreply, state}
+    new_state = update_state(state, payload["main"])
+    IO.inspect diff_state(Map.from_struct(state), Map.from_struct(new_state))
+    {:noreply, new_state}
   end
 
   #
   # Helpers
   #
 
+  defp request(pid, fun, args) do
+    GenServer.call(pid, {:request, {fun, List.wrap(args)}})
+  end
+
   defp register_device(device_id, addr) do
     Registry.register(MusicCast.Registry, device_id, addr)
   end
 
-  defp call(pid, fun, args) do
-    GenServer.call(pid, {:yxc_apply, {fun, List.wrap(args)}})
+  defp update_state(state, %{"signal_info_updated" => true} = event) do
+    state
+    |> update_playback_state()
+    |> update_state(Map.drop(event, ["signal_info_updated"]))
+  end
+
+  defp update_state(state, nil),   do: state
+  defp update_state(state, event), do: update_in(state.status, &Map.merge(&1, event))
+
+  defp update_playback_state(state) do
+    case YXC.get_playback_info(state.host) do
+      {:ok, playback} -> %{state | playback: playback}
+      {:error, _reason} -> state
+    end
+  end
+
+  defp diff_state(old, new) when is_map(old) and is_map(new) do
+    Enum.reduce(new, Map.new(), &diff_value(&1, old, &2) || &2)
+  end
+
+  defp diff_value({k, v}, old, acc) when is_map(old) do
+    unless v == old[k] do
+      unless is_map(v),
+        do: put_in(acc, [k], v),
+      else: put_in(acc, [k], diff_state(v, old[k]))
+    end
   end
 end
