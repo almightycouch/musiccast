@@ -69,13 +69,6 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
-  def handle_call({:lookup, keys}, _from, state) do
-    attrs = for key <- List.wrap(keys), Map.has_key?(state, key), do: Map.fetch!(state, key)
-    if is_list(keys),
-      do: {:reply, attrs, state},
-    else: {:reply, List.first(attrs), state}
-  end
-
   def handle_call({:request, {fun, args}}, _from, state) do
     case apply(YXC, fun, [state.host|args]) do
       {:ok, _resp} ->
@@ -85,7 +78,14 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
-  def handle_info({:extended_control, payload}, state) do
+  def handle_call({:lookup, keys}, _from, state) do
+    attrs = for key <- List.wrap(keys), Map.has_key?(state, key), do: Map.fetch!(state, key)
+    if is_list(keys),
+      do: {:reply, attrs, state},
+    else: {:reply, List.first(attrs), state}
+  end
+
+  def handle_info({:unicast_event, payload}, state) do
     new_state = update_state(state, payload["main"])
     IO.inspect diff_state(Map.from_struct(state), Map.from_struct(new_state))
     {:noreply, new_state}
