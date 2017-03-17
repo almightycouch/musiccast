@@ -38,22 +38,28 @@ defmodule MusicCast.Network.Entity do
     GenServer.call(pid, {:lookup, keys})
   end
 
+  # Forwards setter functions from YXC at compile time.
+  # Basically, this is equivalent to defdelegate/2 but
+  # the request execution is done by the Entity process.
+  fun_docs = Code.get_docs(MusicCast.ExtendedControl, :docs)
   for {fun, arity} <- MusicCast.ExtendedControl.__info__(:functions), !String.starts_with?(to_string(fun), "get_") do
-#   Enum.each(Code.get_docs(MusicCast.ExtendedControl, :docs), fn
-#     {{^fun, ^arity} = tuple, _line, :def, signature, doc} ->
-#       Module.add_doc(__MODULE__, __ENV__.line, :def, tuple, signature, doc)
-#     _else -> false
-#   end)
-    args = Enum.map(1..arity, &Macro.var(:"arg#{&1}", __MODULE__))
-    @doc """
-    See `MusicCast.ExtendedControl.#{fun}/#{arity}`.
-    """
+    args =
+      Enum.find_value(fun_docs, nil, fn
+        {{^fun, _arity}, _line, :def, args, _doc} ->
+          args = Enum.take(args, arity)
+          Enum.map([{:pid, [], nil}|Enum.drop(args, 1)], fn
+            {:\\, [], [{name, [], nil}, []]} -> name
+            {name, [], nil}                  -> name
+          end)
+        _else -> nil
+      end)
+    args = Enum.map(args, &Macro.var(&1, __MODULE__))
+    @doc "See `MusicCast.ExtendedControl.#{fun}/#{arity}`."
     def unquote(fun)(unquote_splicing(args)) do
       [pid|args] = unquote(args)
       GenServer.call(pid, {:request, {unquote(fun), args}})
     end
   end
-
 
   #
   # Callbacks
