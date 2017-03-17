@@ -104,7 +104,8 @@ defmodule MusicCast.Network.Entity do
 
   def handle_info({:unicast_event, payload}, state) do
     new_state = update_state(state, payload["main"])
-    broadcast_event(state.device_id, %{"changes" => diff_state(Map.from_struct(state), Map.from_struct(new_state))})
+    event_map = diff_state(Map.from_struct(state), Map.from_struct(new_state))
+    unless map_size(event_map) == 0, do: broadcast_event(state.device_id, :update, event_map)
     {:noreply, new_state}
   end
 
@@ -116,9 +117,9 @@ defmodule MusicCast.Network.Entity do
     Registry.register(MusicCast.Registry, device_id, addr)
   end
 
-  defp broadcast_event(device_id, event) do
+  defp broadcast_event(device_id, event_type, event) do
     Registry.dispatch(MusicCast.PubSub, device_id, fn subscribers ->
-      for {pid, nil} <- subscribers, do: send(pid, {:extended_control, device_id, event})
+      for {pid, nil} <- subscribers, do: send(pid, {:extended_control, event_type, device_id, event})
     end)
   end
 
@@ -146,7 +147,7 @@ defmodule MusicCast.Network.Entity do
     unless v == old[k] do
       unless is_map(v),
         do: put_in(acc, [k], v),
-      else: put_in(acc, [k], diff_state(v, old[k]))
+      else: put_in(acc, [k], diff_state(old[k], v))
     end
   end
 end
