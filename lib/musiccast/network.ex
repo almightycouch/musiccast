@@ -54,17 +54,15 @@ defmodule MusicCast.Network do
   @doc """
   Returns a list of all registered devices.
   """
-  @spec which_devices() :: [pid]
-  def which_devices do
-    Enum.map(Supervisor.which_children(__MODULE__), &elem(&1, 1))
+  @spec which_devices(MusicCast.Network.Entity.lookup_opts) :: [tuple]
+  def which_devices(keys \\ :lazy)
+
+  def which_devices(:lazy) do
+    Enum.map(fetch_devices(), &{&1, List.first(Registry.keys(MusicCast.Registry, &1))})
   end
 
-  @doc """
-  Returns a list of all registered devices and their attributes.
-  """
-  @spec which_devices(MusicCast.Network.Entity.lookup_opts) :: [tuple]
   def which_devices(keys) do
-    Enum.map(which_devices(), &lookup(&1, keys))
+    Enum.map(fetch_devices(), &lookup(&1, keys))
   end
 
   #
@@ -79,6 +77,10 @@ defmodule MusicCast.Network do
   #
   # Helpers
   #
+
+  defp fetch_devices do
+    Enum.map(Supervisor.which_children(__MODULE__), &elem(&1, 1))
+  end
 
   defp lookup(pid, keys) do
     pid
