@@ -40,7 +40,7 @@ You can control a device using the `MusicCast.Network.Entity` module:
 
 ```elixir
 :ok = MusicCast.Network.Entity.set_volume(pid, 50)
-:ok = MusicCast.Network.Entity.set_playback("pause")
+:ok = MusicCast.Network.Entity.set_playback(pid, "pause")
 ```
 
 You also have the possibility to subscribe to notifications from a specific device:
