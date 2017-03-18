@@ -1,7 +1,7 @@
 defmodule MusicCastNetworkTest do
   use ExUnit.Case, async: true
 
-  @ip_addresses [{192, 168, 0, 60}]
+  @ip_addresses []
 
   alias MusicCast.Network
   alias MusicCast.Network.Entity
