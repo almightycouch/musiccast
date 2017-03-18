@@ -14,10 +14,37 @@ See the [online documentation](https://hexdocs.pm/musiccast/) for more informati
 
 ## Installation
 
-Add `MusicCast` to your list of dependencies in `mix.exs`:
+Add `:musiccast` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [{:musiccast, "~> 0.1"}]
 end
+```
+
+## Usage
+
+Start by discovering MusicCast devices on your network:
+
+```elixir
+:ok = MusicCast.discover()
+```
+
+Devices are automatically added to the supervision network, you can list all registered devices as follow:
+
+```elixir
+[{pid, device_id}] = MusicCast.which_devices()
+```
+
+You can control a device using the `MusicCast.Network.Entity` module:
+
+```elixir
+:ok = MusicCast.Network.Entity.set_volume(pid, 50)
+:ok = MusicCast.Network.Entity.set_playback("pause")
+```
+
+You also have the possibility to subscribe to notifications from a specific device:
+
+```elixir
+:ok = MusicCast.subscribe(device_id)
 ```
