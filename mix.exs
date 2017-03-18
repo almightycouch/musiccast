@@ -12,6 +12,7 @@ defmodule MusicCast.Mixfile do
      description: description(),
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
+     docs: docs(),
      deps: deps()]
   end
 
