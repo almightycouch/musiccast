@@ -39,7 +39,7 @@ defmodule MusicCast.Network.Entity do
   end
 
   for {fun, arity} <- MusicCast.ExtendedControl.__info__(:functions), !String.starts_with?(to_string(fun), "get_") do
-    args = Enum.map(0..arity, &Macro.var(:"arg#{&1}", __MODULE__))
+    args = Enum.map(0..arity-1, &Macro.var(:"arg#{&1}", __MODULE__))
     @doc "See `MusicCast.ExtendedControl.#{fun}/#{arity}`."
     def unquote(fun)(unquote_splicing(args)) do
       [pid|args] = unquote(args)
