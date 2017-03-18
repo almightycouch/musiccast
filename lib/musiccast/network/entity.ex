@@ -38,22 +38,8 @@ defmodule MusicCast.Network.Entity do
     GenServer.call(pid, {:lookup, keys})
   end
 
-  # Forwards setter functions from YXC at compile time.
-  # Basically, this is equivalent to defdelegate/2 but
-  # the request execution is done by the Entity process.
-  fun_docs = Code.get_docs(MusicCast.ExtendedControl, :docs)
   for {fun, arity} <- MusicCast.ExtendedControl.__info__(:functions), !String.starts_with?(to_string(fun), "get_") do
-    args =
-      Enum.find_value(fun_docs, nil, fn
-        {{^fun, _arity}, _line, :def, args, _doc} ->
-          args = Enum.take(args, arity)
-          Enum.map([{:pid, [], nil}|Enum.drop(args, 1)], fn
-            {:\\, [], [{name, [], nil}, []]} -> name
-            {name, [], nil}                  -> name
-          end)
-        _else -> nil
-      end)
-    args = Enum.map(args, &Macro.var(&1, __MODULE__))
+    args = Enum.map(0..arity, &Macro.var(:"arg#{&1}", __MODULE__))
     @doc "See `MusicCast.ExtendedControl.#{fun}/#{arity}`."
     def unquote(fun)(unquote_splicing(args)) do
       [pid|args] = unquote(args)
