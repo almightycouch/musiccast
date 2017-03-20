@@ -27,15 +27,34 @@ defmodule MusicCast.Network do
   @doc """
   Subscribes the current process to notifications from the given device.
   """
-  @spec subscribe(MusicCast.Network.Entity.device_id) :: {:ok, pid} | {:error, {:already_registered, pid}}
+  @spec subscribe(MusicCast.Network.Entity.device_id | :network) :: {:ok, pid} | {:error, {:not_found, MusicCast.Network.Entity.device_id}}
+  def subscribe(device_id \\ :network)
+
+  def subscribe(:network) do
+    {:ok, _} = Registry.register(MusicCast.PubSub, "network", nil)
+    {:ok, Process.whereis(MusicCast.Network)}
+  end
+
   def subscribe(device_id) do
-    Registry.register(MusicCast.PubSub, device_id, nil)
+    case whereis(device_id) do
+      {pid, _host} ->
+        {:ok, _} = Registry.register(MusicCast.PubSub, device_id, nil)
+        {:ok, pid}
+      nil ->
+        {:error, {:not_found, device_id}}
+    end
   end
 
   @doc """
   Unsubscribes the current process from notification from the given device.
   """
-  @spec unsubscribe(MusiCast.Network.device_id) :: :ok
+  @spec unsubscribe(MusiCast.Network.device_id | :network) :: :ok
+  def unsubscribe(device_id \\ :network)
+
+  def unsubscribe(:network) do
+    Registry.unregister(MusicCast.PubSub, "network")
+  end
+
   def unsubscribe(device_id) do
     Registry.unregister(MusicCast.PubSub, device_id)
   end

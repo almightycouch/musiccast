@@ -61,7 +61,8 @@ defmodule MusicCast.Network.Entity do
          {:ok, %{"network_name" => network_name}} <- YXC.get_network_status(host),
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
-         {:ok, _} <- register_device(device_id, addr) do
+         {:ok, _} <- register_device(device_id, addr),
+         {:ok, _} <- announce_device(device_id, network_name, status, playback) do
       {:ok, %__MODULE__{host: host,
                         device_id: device_id,
                         network_name: network_name,
@@ -99,14 +100,22 @@ defmodule MusicCast.Network.Entity do
   # Helpers
   #
 
-  defp register_device(device_id, addr) do
-    Registry.register(MusicCast.Registry, device_id, addr)
+  defp announce_device(device_id, network_name, status, playback) do
+    state = %{network_name: network_name, status: status, playback: playback}
+    Registry.dispatch(MusicCast.PubSub, "network", fn subscribers ->
+      for {pid, nil} <- subscribers, do: send(pid, {:extended_control, :online, device_id, state})
+    end)
+    {:ok, self()}
   end
 
   defp broadcast_event(device_id, event_type, event) do
     Registry.dispatch(MusicCast.PubSub, device_id, fn subscribers ->
       for {pid, nil} <- subscribers, do: send(pid, {:extended_control, event_type, device_id, event})
     end)
+  end
+
+  defp register_device(device_id, addr) do
+    Registry.register(MusicCast.Registry, device_id, addr)
   end
 
   defp update_state(state, %{"signal_info_updated" => true} = event) do
