@@ -62,7 +62,7 @@ defmodule MusicCast.Network.Entity do
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
          {:ok, _} <- register_device(device_id, addr),
-         {:ok, _} <- announce_device(device_id, network_name, status, playback) do
+         {:ok, _} <- announce_device(device_id, host, network_name, status, playback) do
       {:ok, %__MODULE__{host: host,
                         device_id: device_id,
                         network_name: network_name,
@@ -90,18 +90,22 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_info({:unicast_event, payload}, state) do
-    new_state = update_state(state, payload["main"])
-    event_map = diff_state(Map.from_struct(state), Map.from_struct(new_state))
-    unless map_size(event_map) == 0, do: broadcast_event(state.device_id, :update, event_map)
-    {:noreply, new_state}
+    state =
+      Enum.reduce(payload, state, fn {_, event}, state ->
+        new_state = update_state(state, event)
+        event_map = diff_state(Map.from_struct(state), Map.from_struct(new_state))
+        unless map_size(event_map) == 0, do: broadcast_event(state.device_id, :update, event_map)
+        new_state
+      end)
+    {:noreply, state}
   end
 
   #
   # Helpers
   #
 
-  defp announce_device(device_id, network_name, status, playback) do
-    state = %{network_name: network_name, status: status, playback: playback}
+  defp announce_device(device_id, host, network_name, status, playback) do
+    state = %{host: host, network_name: network_name, status: status, playback: playback}
     Registry.dispatch(MusicCast.PubSub, "network", fn subscribers ->
       for {pid, nil} <- subscribers, do: send(pid, {:extended_control, :online, device_id, state})
     end)
@@ -118,10 +122,16 @@ defmodule MusicCast.Network.Entity do
     Registry.register(MusicCast.Registry, device_id, addr)
   end
 
+  defp update_state(state, %{"status_updated" => true} = event) do
+    update_state(state, Map.drop(event, ["status_updated"]))
+  end
+
   defp update_state(state, %{"signal_info_updated" => true} = event) do
-    state
-    |> update_playback_state()
-    |> update_state(Map.drop(event, ["signal_info_updated"]))
+    update_state(state, Map.drop(event, ["signal_info_updated"]))
+  end
+
+  defp update_state(state, %{"play_info_updated" => true}) do
+    update_playback_state(state)
   end
 
   defp update_state(state, nil),   do: state
