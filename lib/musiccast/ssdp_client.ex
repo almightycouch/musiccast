@@ -67,8 +67,8 @@ defmodule MusicCast.SSDPClient do
         target = ssdp_msg[:st] || ssdp_msg[:nt]
         if target == @ssdp_st do
           Map.put_new_lazy(entities, addr, fn ->
-            if info = request_device_info(ssdp_msg.location) do
-              mount_device(addr, info.device)
+            if desc = request_desc(ssdp_msg.location) do
+              mount_device(addr, desc)
             end
           end)
         end
@@ -85,8 +85,8 @@ defmodule MusicCast.SSDPClient do
   # Helpers
   #
 
-  defp mount_device(addr, _device) do
-    case MusicCast.Network.add_device(addr) do
+  defp mount_device(addr, desc) do
+    case MusicCast.Network.add_device(addr, desc) do
       {:ok, pid} ->
         Process.monitor(pid)
       {:error, {:already_registered, pid}} ->
@@ -96,7 +96,7 @@ defmodule MusicCast.SSDPClient do
     end
   end
 
-  defp request_device_info(url) do
+  defp request_desc(url) do
     case HTTPoison.get(url) do
       {:ok, %HTTPoison.Response{body: body, status_code: 200}} ->
         body

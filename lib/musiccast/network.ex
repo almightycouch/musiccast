@@ -19,9 +19,9 @@ defmodule MusicCast.Network do
   @doc """
   Adds a new device to the network.
   """
-  @spec add_device(MusicCast.Network.Entity.ip_address) :: Supervisor.on_start_child
-  def add_device(addr) do
-    Supervisor.start_child(__MODULE__, [addr])
+  @spec add_device(MusicCast.Network.Entity.ip_address, Map.t) :: Supervisor.on_start_child
+  def add_device(addr, upnp_desc) do
+    Supervisor.start_child(__MODULE__, [addr, upnp_desc])
   end
 
   @doc """

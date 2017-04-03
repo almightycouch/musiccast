@@ -10,6 +10,7 @@ defmodule MusicCast.Network.Entity do
   alias MusicCast.ExtendedControl, as: YXC
 
   defstruct host: nil,
+            upnp_desc: nil,
             device_id: nil,
             network_name: nil,
             status: nil,
@@ -25,9 +26,9 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Starts an entity as part of a supervision tree.
   """
-  @spec start_link(ip_address, Keyword.t) :: GenServer.on_start
-  def start_link(addr, options \\ []) do
-    GenServer.start_link(__MODULE__, addr, options)
+  @spec start_link(ip_address, Map.t, Keyword.t) :: GenServer.on_start
+  def start_link(addr, upnp_desc, options \\ []) do
+    GenServer.start_link(__MODULE__, {addr, upnp_desc}, options)
   end
 
   @doc """
@@ -51,7 +52,7 @@ defmodule MusicCast.Network.Entity do
   # Callbacks
   #
 
-  def init(addr) do
+  def init({addr, upnp_desc}) do
     headers = [
       {"X-AppName", "MusicCast/1.50"},
       {"X-AppPort", 41100}
@@ -64,6 +65,7 @@ defmodule MusicCast.Network.Entity do
          {:ok, _} <- register_device(device_id, addr),
          {:ok, _} <- announce_device(device_id, host, network_name, status, playback) do
       {:ok, %__MODULE__{host: host,
+                        upnp_desc: upnp_desc,
                         device_id: device_id,
                         network_name: network_name,
                         status: status,

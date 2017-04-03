@@ -3,7 +3,7 @@ defmodule MusicCast do
   A Yamaha MusicCast™ implementation supporting SSDP discovery and Yamaha's YXC API.
   """
 
-  defdelegate add_device(addr), to: MusicCast.Network
+  defdelegate add_device(addr, upnp_desc), to: MusicCast.Network
   defdelegate discover, to: MusicCast.SSDPClient
   defdelegate subscribe(device_id \\ :network), to: MusicCast.Network
   defdelegate unsubscribe(device_id \\ :network), to: MusicCast.Network
