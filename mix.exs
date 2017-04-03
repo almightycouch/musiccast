@@ -43,7 +43,6 @@ defmodule MusicCast.Mixfile do
     [{:httpoison, "~> 0.11"},
      {:poison, "~> 3.1"},
      {:sweet_xml, "~> 0.6"},
-     {:soap, github: "bet365/soap"},
      {:ex_doc, "~> 0.14", only: :dev, runtime: false}]
   end
 end
