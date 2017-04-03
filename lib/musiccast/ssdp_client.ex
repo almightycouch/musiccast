@@ -7,7 +7,7 @@ defmodule MusicCast.SSDPClient do
 
   import SweetXml
 
-  @ssdp_st "upnp:rootdevice"
+  @ssdp_st "urn:schemas-upnp-org:device:MediaRenderer:1"
   @ssdp_mx 2
 
   @multicast_addr {239, 255, 255, 250}
@@ -99,7 +99,9 @@ defmodule MusicCast.SSDPClient do
   defp request_device_info(url) do
     case HTTPoison.get(url) do
       {:ok, %HTTPoison.Response{body: body, status_code: 200}} ->
-        decode_device_info(body)
+        body
+        |> decode_device_info
+        |> Map.put(:url, url)
       {:error, %HTTPoison.Error{}} ->
         nil
     end
@@ -144,8 +146,6 @@ defmodule MusicCast.SSDPClient do
           major: ~x"./major/text()",
           minor: ~x"./minor/text()",
       ],
-      url: ~x"./URLBase/text()",
-      uri: ~x"./URLBase/text()",
       device: [
           ~x"./device",
           device_type: ~x"./deviceType/text()",
@@ -159,20 +159,20 @@ defmodule MusicCast.SSDPClient do
           udn: ~x"./UDN/text()",
           presentation_url: ~x"./presentationURL/text()",
           icon_list: [
-              ~x"./iconList"l,
-              mime_type: ~x"./icon/mimetype/text()",
-              height: ~x"./icon/height/text()",
-              width: ~x"./icon/width/text()",
-              depth: ~x"./icon/depth/text()",
-              url: ~x"./icon/url/text()",
+              ~x"./iconList/icon"l,
+              mime_type: ~x"./mimetype/text()",
+              height: ~x"./height/text()",
+              width: ~x"./width/text()",
+              depth: ~x"./depth/text()",
+              url: ~x"./url/text()",
           ],
           service_list: [
-              ~x"./serviceList"l,
-              service_type: ~x"./service/serviceType/text()",
-              service_id: ~x"./service/serviceId/text()",
-              control_url: ~x"./service/controlURL/text()",
-              event_sub_url: ~x"./service/eventSubURL/text()",
-              scpd_url: ~x"./service/SCPDURL/text()",
+              ~x"./serviceList/service"l,
+              service_type: ~x"./serviceType/text()",
+              service_id: ~x"./serviceId/text()",
+              scpd_url: ~x"./SCPDURL/text()",
+              control_url: ~x"./controlURL/text()",
+              event_sub_url: ~x"./eventSubURL/text()",
           ]
       ]
     )
