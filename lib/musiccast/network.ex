@@ -1,6 +1,6 @@
 defmodule MusicCast.Network do
   @moduledoc """
-  A module for supervising a network of MusicCast devices.
+  A module for supervising a network of MusicCast™ devices.
   """
 
   use Supervisor
@@ -8,7 +8,7 @@ defmodule MusicCast.Network do
   alias MusicCast.Network.Entity
 
   @doc """
-  Starts a network as part of a supervision tree.
+  Starts a network supervisor as part of a supervision tree.
   """
   @spec start_link(Keyword.t) :: Supervisor.on_start
   def start_link(options \\ []) do
@@ -17,7 +17,7 @@ defmodule MusicCast.Network do
   end
 
   @doc """
-  Adds a new device to the network.
+  Adds a new device entity to the network.
   """
   @spec add_device(MusicCast.Network.Entity.ip_address, MusicCast.Network.Entity.upnp_desc) :: Supervisor.on_start_child
   def add_device(addr, upnp_desc) do
@@ -25,10 +25,10 @@ defmodule MusicCast.Network do
   end
 
   @doc """
-  Subscribes the current process to notifications from the given device.
+  Subscribes the current process to notifications from the given entity.
   """
   @spec subscribe(MusicCast.Network.Entity.device_id | :network) :: {:ok, pid} | {:error, {:not_found, MusicCast.Network.Entity.device_id}}
-  def subscribe(device_id \\ :network)
+  def subscribe(entity \\ :network)
 
   def subscribe(:network) do
     {:ok, _} = Registry.register(MusicCast.PubSub, "network", nil)
@@ -46,10 +46,10 @@ defmodule MusicCast.Network do
   end
 
   @doc """
-  Unsubscribes the current process from notification from the given device.
+  Unsubscribes the current process from notification from the given entity.
   """
   @spec unsubscribe(MusiCast.Network.device_id | :network) :: :ok
-  def unsubscribe(device_id \\ :network)
+  def unsubscribe(entity \\ :network)
 
   def unsubscribe(:network) do
     Registry.unregister(MusicCast.PubSub, "network")
@@ -73,7 +73,7 @@ defmodule MusicCast.Network do
   @doc """
   Returns a list of all registered devices.
   """
-  @spec which_devices(MusicCast.Network.Entity.lookup_opts) :: [tuple]
+  @spec which_devices(MusicCast.Network.Entity.lookup_keys | :lazy) :: [tuple]
   def which_devices(keys \\ :lazy)
 
   def which_devices(:lazy) do

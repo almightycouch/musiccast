@@ -1,6 +1,46 @@
 defmodule MusicCast.Network.Entity do
   @moduledoc """
-  A module for managing MusicCast enabled devices.
+  A module for managing MusicCast™ enabled devices.
+
+  A network entity is automatically started when a MusicCast enabled device is
+  discovered. See the `MusicCast.UPnP.SSDPClient` for implementation details. Once started,
+  the entity process is available to the network registry via it MusicCast device ID.
+  See `MusicCast.whereis/1` and `MusicCast.which_devices/1` for more details about the network registry.
+
+      iex> {pid, host} = MusicCast.whereis("ABCDEF01")
+      {pid, {192, 168, 0, 63}}
+
+  Each entity process keeps it state synchronized with the device it is paired with.
+  This task is acomplished by the `MusicCast.Network.EventListener` process which forwards
+  incoming YXC unicast messages to the affected entity processes.
+  See `MusicCast.subscribe/1` and `MusicCast.unsubscribe/1` for more details.
+
+  ## Yamaha Extended Control (YXC)
+
+  As described previously, an entity automatically keeps it state synchronized to the device it is connected to.
+  In order to fetch the current state of an entity, use the `__lookup__/2` function:
+
+      iex> {pid, host} = MusicCast.whereis("ABCDEF01")
+      {pid, {192, 168, 0, 63}}
+      iex> MusicCast.Network.Entity.__lookup__(pid, :network_name)
+      "Wohnzimmer"
+      iex> MusicCast.Network.Entity.__lookup__(pid, :status)
+      %{}
+
+  See `t:lookup_keys/0` for a list of available lookup keys.
+
+  The `MusicCast.Network.Entity` module provides all the *setter* functions available by
+  the Yamaha Extended Control REST API. See `MusicCast.ExtendedControl` for a list of available functions.
+
+      iex> {:ok, pid} = MusicCast.subscribe("ABCDEF01")
+      {:ok, pid}
+      iex> MusicCast.Network.Entity.set_volume(pid, 30)
+      :ok
+      iex> MusicCast.Network.Entity.set_playback(pid, "play")
+      :ok
+      iex> flush()
+      {:extended_control, :update, "ABCDEF01", %{status: %{volume: 30}}}
+      {:extended_control, :update, "ABCDEF01", %{playback: %{playback: "play"}}}
   """
 
   use GenServer
@@ -21,8 +61,8 @@ defmodule MusicCast.Network.Entity do
   @type device_id :: String.t
   @type upnp_desc :: Map.t
 
-  @type lookup_opt :: :host | :device_id | :network_name | :status | :playback
-  @type lookup_opts :: [lookup_opt] | lookup_opt
+  @type lookup_key :: :host | :device_id | :network_name | :status | :playback
+  @type lookup_keys :: [lookup_key] | lookup_key
 
   @doc """
   Starts an entity as part of a supervision tree.
@@ -35,7 +75,7 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Looks-up the value(s) for the given key(s).
   """
-  @spec __lookup__(GenServer.server, lookup_opts) :: [term] | term
+  @spec __lookup__(GenServer.server, lookup_keys) :: [term] | term
   def __lookup__(pid, keys) do
     GenServer.call(pid, {:lookup, keys})
   end

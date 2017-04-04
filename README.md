@@ -30,7 +30,7 @@ Start by discovering MusicCast devices on your network:
 :ok = MusicCast.discover()
 ```
 
-Devices are automatically added to the supervision network, you can list all registered devices as follow:
+Devices are automatically added to `MusicCast.Network`, you can list all registered devices as follow:
 
 ```elixir
 [{pid, device_id}] = MusicCast.which_devices()

@@ -1,6 +1,15 @@
 defmodule MusicCast.UPnP.Service do
   @moduledoc """
-  Helper functions for working with UPnP services.
+  A module for working with UPnP A/V services.
+
+  ## Example
+
+      defmodule AVTransport do
+        use MusicCast.UPnP.Service, type: "AVTransport:1"
+      end
+
+  By default, the service will be generated from the `priv/<av_transport_1.xml>` file of the current application
+  but it can be configured to be any subdirectory of priv by specifying the `:priv` option.
   """
 
   import SweetXml
@@ -40,9 +49,15 @@ defmodule MusicCast.UPnP.Service do
   end
 
   defmacro __using__(options) do
-    path = Path.join(:code.priv_dir(:musiccast), Keyword.fetch!(options, :desc))
+    type_spec = Keyword.fetch!(options, :type)
+    file_name =
+      type_spec
+      |> String.replace(":", "_")
+      |> Macro.underscore
+      |> Kernel.<>(".xml")
+    path = Path.join(:code.priv_dir(Keyword.get(options, :priv, :musiccast)), file_name)
     service = deserialize_desc(File.stream!(path))
-    urn = "urn:schemas-upnp-org:service:" <> Keyword.fetch!(options, :type)
+    urn = "urn:schemas-upnp-org:service:" <> type_spec
     for %{name: name, argument_list: args} <- service.action_list do
       fun = String.to_atom(Macro.underscore(name))
       cmd_args = Enum.group_by(args, & &1.direction)

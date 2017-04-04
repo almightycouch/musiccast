@@ -3,7 +3,27 @@ defmodule MusicCast.ExtendedControl do
   A module for working with Yamaha Extended Control (YXC).
 
   YXC is Yamaha’s communication protocol sent over Ethernet and Wi-Fi to
-  control MusicCast enabled devices.
+  control MusicCast enabled devices. This implementation is based on the
+  [API Specification Rev. 1.00](https://www.google.com/search?as_epq=YXC_API_Spec_Basic.pdf&as_filetype=pdf)
+  published by Yamaha in 2016.
+
+      iex> alias MusicCast.ExtendedControl, as: YXC
+      MusicCast.ExtendedControl
+      iex> YXC.get_device_info("192.168.0.63")
+      %{}
+      iex> YXC.set_input("192.168.0.63", "spotify")
+      :ok
+      iex> YXC.set_playback("192.168.0.63", "play")
+      :ok
+
+  Instead of using this module directly, you should use `MusicCast.Network` and `MusicCast.Network.Entity`
+  which provide a better abstraction to work with MusicCast devices.
+
+  For more informations about the YXC unicast events, see `MusicCast.Network.EventListener`.
+
+  Support for advanced functionalities such as *Link mode*, group management, etc. have not been implemented yet.
+  See the [Advanced API Specification](https://www.google.com/search?as_epq=YXC_API_Spec_Advanced.pdf&as_filetype=pdf)
+  for more informations.
   """
 
   @base_path "/YamahaExtendedControl/v1"
