@@ -40,10 +40,9 @@ defmodule MusicCast.UPnP.Service do
   end
 
   defmacro __using__(options) do
-    Application.ensure_all_started(:httpoison)
-    url = Keyword.fetch!(options, :url)
-    urn = Keyword.fetch!(options, :urn)
-    {:ok, service} = describe(url)
+    path = Path.join(:code.priv_dir(:musiccast), Keyword.fetch!(options, :desc))
+    service = deserialize_desc(File.stream!(path))
+    urn = "urn:schemas-upnp-org:service:" <> Keyword.fetch!(options, :type)
     for %{name: name, argument_list: args} <- service.action_list do
       fun = String.to_atom(Macro.underscore(name))
       cmd_args = Enum.group_by(args, & &1.direction)
