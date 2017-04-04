@@ -19,6 +19,7 @@ defmodule MusicCast.Network.Entity do
   @type ip_address :: {0..255, 0..255, 0..255, 0..255}
 
   @type device_id :: String.t
+  @type upnp_desc :: Map.t
 
   @type lookup_opt :: :host | :device_id | :network_name | :status | :playback
   @type lookup_opts :: [lookup_opt] | lookup_opt
@@ -26,7 +27,7 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Starts an entity as part of a supervision tree.
   """
-  @spec start_link(ip_address, Map.t, Keyword.t) :: GenServer.on_start
+  @spec start_link(ip_address, upnp_desc, Keyword.t) :: GenServer.on_start
   def start_link(addr, upnp_desc, options \\ []) do
     GenServer.start_link(__MODULE__, {addr, upnp_desc}, options)
   end
