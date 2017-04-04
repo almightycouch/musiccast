@@ -5,6 +5,8 @@ defmodule MusicCast.UPnP.Service do
 
   import SweetXml
 
+  defstruct action_list: [], property_list: []
+
   @doc """
   Returns a map representing the UPnP service.
   """
@@ -12,7 +14,7 @@ defmodule MusicCast.UPnP.Service do
   def describe(url) do
     case HTTPoison.get(url) do
       {:ok, %HTTPoison.Response{body: body}} ->
-        {:ok, deserialize_desc(body)}
+        {:ok, struct(__MODULE__, deserialize_desc(body))}
       {:error, %HTTPoison.Error{reason: reason}} ->
         {:error, reason}
     end
@@ -27,13 +29,40 @@ defmodule MusicCast.UPnP.Service do
     case HTTPoison.post(url, body, ["SOAPAction": "\"#{service_type}##{action}\""]) do
       {:ok, %HTTPoison.Response{body: body, status_code: status}} when status in 200..299 ->
         {:ok, xpath(body, ~x"//s:Envelope/s:Body/u:#{action}Response[xmlns:u=#{service_type}]")}
-      {:ok, %HTTPoison.Response{body: body}} ->
+      {:ok, %HTTPoison.Response{body: body, status_code: 500}} ->
         error = xpath(body, ~x"//s:Envelope/s:Body/s:Fault/detail/u:UPnPError",
           code: ~x"./u:errorCode/text()"i,
           desc: ~x"./u:errorDescription/text()"s)
         {:error, {:upnp_error, error.code, error.desc}}
       {:error, %HTTPoison.Error{reason: reason}} ->
         {:error, reason}
+    end
+  end
+
+  defmacro __using__(options) do
+    Application.ensure_all_started(:httpoison)
+    url = Keyword.fetch!(options, :url)
+    urn = Keyword.fetch!(options, :urn)
+    {:ok, service} = describe(url)
+    for %{name: name, argument_list: args} <- service.action_list do
+      fun = String.to_atom(Macro.underscore(name))
+      cmd_args = Enum.group_by(args, & &1.direction)
+      fun_args = Enum.map(cmd_args["in"], &Macro.var(String.to_atom(Macro.underscore(&1.name)), __MODULE__))
+      quote do
+        def unquote(fun)(url, unquote_splicing(fun_args)) do
+          args = unquote(fun_args)
+          tags = unquote(Macro.escape(cmd_args["in"]))
+                 |> Enum.with_index
+                 |> Enum.map(fn {%{name: name}, i} -> {name, Enum.at(args, i)} end)
+          case unquote(__MODULE__).call_action(url, unquote(urn), unquote(name), tags) do
+            {:ok, response} ->
+              query_path = Enum.map(unquote(Macro.escape(cmd_args["out"])), &{String.to_atom(Macro.underscore(&1.name)), ~x"./#{&1.name}/text()"s})
+              {:ok, xmap(response, query_path)}
+            {:error, reason} ->
+              {:error, reason}
+          end
+        end
+      end
     end
   end
 
@@ -50,6 +79,18 @@ defmodule MusicCast.UPnP.Service do
     |> :xmerl.export_simple(:xmerl_xml)
     |> List.flatten
     |> to_string
+  end
+
+  defp envelope(body) do
+    {:"s:Envelope", ["s:encodingStyle": "http://schemas.xmlsoap.org/soap/encoding/", "xmlns:s": "http://schemas.xmlsoap.org/soap/envelope/"], body}
+  end
+
+  defp body_params(service_type, action, params) do
+    {:"s:Body", [{:"u:#{action}", ["xmlns:u": service_type], Enum.map(params, &map_param/1)}]}
+  end
+
+  defp map_param({key, val}) do
+    {:"#{key}", [[to_string(val)]]}
   end
 
   defp deserialize_desc(xml) do
@@ -71,17 +112,5 @@ defmodule MusicCast.UPnP.Service do
         type: ~x"./dataType/text()"s
       ]
     )
-  end
-
-  defp envelope(body) do
-    {:"s:Envelope", ["s:encodingStyle": "http://schemas.xmlsoap.org/soap/encoding/", "xmlns:s": "http://schemas.xmlsoap.org/soap/envelope/"], body}
-  end
-
-  defp body_params(service_type, action, params) do
-    {:"s:Body", [{:"u:#{action}", ["xmlns:u": service_type], Enum.map(params, &map_param/1)}]}
-  end
-
-  defp map_param({key, val}) do
-    {:"#{key}", [[to_string(val)]]}
   end
 end
