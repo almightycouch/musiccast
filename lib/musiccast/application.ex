@@ -10,7 +10,7 @@ defmodule MusicCast.Application do
       supervisor(MusicCast.Network, []),
       supervisor(Registry, [:duplicate, MusicCast.PubSub],   id: :pubsub),
       supervisor(Registry, [:unique,    MusicCast.Registry], id: :registry),
-      worker(MusicCast.SSDPClient, []),
+      worker(MusicCast.UPnP.SSDPClient, []),
       worker(MusicCast.Network.EventListener, []),
     ]
 

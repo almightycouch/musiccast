@@ -4,7 +4,7 @@ defmodule MusicCast do
   """
 
   defdelegate add_device(addr, upnp_desc), to: MusicCast.Network
-  defdelegate discover, to: MusicCast.SSDPClient
+  defdelegate discover, to: MusicCast.UPnP.SSDPClient
   defdelegate subscribe(device_id \\ :network), to: MusicCast.Network
   defdelegate unsubscribe(device_id \\ :network), to: MusicCast.Network
   defdelegate whereis(device_id), to: MusicCast.Network

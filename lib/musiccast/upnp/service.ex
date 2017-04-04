@@ -1,8 +1,9 @@
-defmodule MusicCast.UPnP do
-  import SweetXml
+defmodule MusicCast.UPnP.Service do
   @moduledoc """
   Helper functions for working with UPnP services.
   """
+
+  import SweetXml
 
   @doc """
   Returns a map representing the UPnP service.

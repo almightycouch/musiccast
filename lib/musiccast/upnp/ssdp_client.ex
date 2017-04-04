@@ -1,4 +1,4 @@
-defmodule MusicCast.SSDPClient do
+defmodule MusicCast.UPnP.SSDPClient do
   @moduledoc """
   A basic SSDP client module for discovery on the local network.
   """
