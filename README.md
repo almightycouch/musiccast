@@ -6,6 +6,8 @@
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/almightycouch/musiccast/master/LICENSE)
 [![Github Issues](https://img.shields.io/github/issues/almightycouch/musiccast.svg)](http://github.com/almightycouch/musiccast/issues)
 
+![Cover image](http://fs5.directupload.net/images/170405/knpsxx54.jpg)
+
 Elixir implementation of Yamaha's MusicCast™ multiroom audio solution.
 
 ## Documentation
