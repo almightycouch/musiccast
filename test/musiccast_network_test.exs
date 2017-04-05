@@ -13,7 +13,7 @@ defmodule MusicCastNetworkTest do
   end
 
   test "network discovery" do
-    disco = Process.whereis(MusicCast.SSDPClient)
+    disco = Process.whereis(MusicCast.UPnP.SSDPClient)
     state = :sys.get_state(disco)
     count = Enum.count(Enum.filter(state.entities, &is_reference(elem(&1, 1))))
     assert count == length(@ip_addresses)
