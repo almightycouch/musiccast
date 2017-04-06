@@ -45,9 +45,9 @@ defmodule MusicCast.Network.Entity do
 
   use GenServer
 
-  require Logger
-
   alias MusicCast.ExtendedControl, as: YXC
+
+  use GenImpl, for: MusicCast.ExtendedControl
 
   defstruct host: nil,
             upnp: nil,
@@ -80,14 +80,6 @@ defmodule MusicCast.Network.Entity do
     GenServer.call(pid, {:lookup, keys})
   end
 
-  for {fun, arity} <- MusicCast.ExtendedControl.__info__(:functions), !String.starts_with?(to_string(fun), "get_") do
-    args = Enum.map(0..arity-1, &Macro.var(:"arg#{&1}", __MODULE__))
-    @doc "See `MusicCast.ExtendedControl.#{fun}/#{arity}`."
-    def unquote(fun)(unquote_splicing(args)) do
-      [pid|args] = unquote(args)
-      GenServer.call(pid, {:request, {unquote(fun), args}})
-    end
-  end
 
   #
   # Callbacks
@@ -104,23 +96,25 @@ defmodule MusicCast.Network.Entity do
          {:ok, upnp} <- parse_upnp_desc(upnp_desc),
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
-         {:ok, _} <- register_device(device_id, addr),
-         {:ok, _} <- announce_device(device_id, host, network_name, status, playback) do
+         {:ok, _} <- register_device(device_id, addr) do
+      status = atomize_map(status)
+      playback = atomize_map(playback)
+      announce_device(device_id, host, network_name, status, playback)
       {:ok, %__MODULE__{host: host,
                         upnp: upnp,
                         device_id: device_id,
                         network_name: network_name,
-                        status: atomize_map(status),
-                        playback: atomize_map(playback)}}
+                        status: status,
+                        playback: playback}}
     else
       {:error, reason} -> {:stop, reason}
     end
   end
 
-  def handle_call({:request, {fun, args}}, _from, state) do
-    case apply(YXC, fun, [state.host|args]) do
-      {:ok, _resp} ->
-        {:reply, :ok, state}
+  def handle_call({:gen_impl, module, {fun, args}}, _from, state) do
+    case apply(module, fun, [state.host|args]) do
+      {:ok, resp} ->
+        {:reply, {:ok, resp}, state}
       {:error, reason} ->
         {:reply, {:error, reason}, state}
     end
@@ -153,7 +147,6 @@ defmodule MusicCast.Network.Entity do
     Registry.dispatch(MusicCast.PubSub, "network", fn subscribers ->
       for {pid, nil} <- subscribers, do: send(pid, {:extended_control, :online, device_id, state})
     end)
-    {:ok, self()}
   end
 
   defp broadcast_event(device_id, event_type, event) do
@@ -166,15 +159,15 @@ defmodule MusicCast.Network.Entity do
     Registry.register(MusicCast.Registry, device_id, addr)
   end
 
-  defp update_state(state, %{"status_updated" => true} = event) do
-    update_state(state, Map.drop(event, ["status_updated"]))
+  defp update_state(state, %{status_updated: true} = event) do
+    update_state(state, Map.drop(event, [:status_updated]))
   end
 
-  defp update_state(state, %{"signal_info_updated" => true} = event) do
-    update_state(state, Map.drop(event, ["signal_info_updated"]))
+  defp update_state(state, %{signal_info_updated: true} = event) do
+    update_state(state, Map.drop(event, [:signal_info_updated]))
   end
 
-  defp update_state(state, %{"play_info_updated" => true}) do
+  defp update_state(state, %{play_info_updated: true}) do
     update_playback_state(state)
   end
 
