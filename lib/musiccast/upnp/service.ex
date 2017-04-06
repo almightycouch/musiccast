@@ -61,16 +61,16 @@ defmodule MusicCast.UPnP.Service do
     for %{name: name, argument_list: args} <- service.action_list do
       fun = String.to_atom(Macro.underscore(name))
       cmd_args = Enum.group_by(args, & &1.direction)
-      fun_args = Enum.map(cmd_args["in"], &Macro.var(String.to_atom(Macro.underscore(&1.name)), __MODULE__))
+      fun_args = Enum.map(cmd_args["in"] || [], &Macro.var(String.to_atom(Macro.underscore(&1.name)), __MODULE__))
       quote do
         def unquote(fun)(url, unquote_splicing(fun_args)) do
           args = unquote(fun_args)
-          tags = unquote(Macro.escape(cmd_args["in"]))
+          tags = unquote(Macro.escape(cmd_args["in"] || []))
                  |> Enum.with_index
                  |> Enum.map(fn {%{name: name}, i} -> {name, Enum.at(args, i)} end)
           case unquote(__MODULE__).call_action(url, unquote(urn), unquote(name), tags) do
             {:ok, response} ->
-              query_path = Enum.map(unquote(Macro.escape(cmd_args["out"])), &{String.to_atom(Macro.underscore(&1.name)), ~x"./#{&1.name}/text()"s})
+              query_path = Enum.map(unquote(Macro.escape(cmd_args["out"] || [])), &{String.to_atom(Macro.underscore(&1.name)), ~x"./#{&1.name}/text()"s})
               {:ok, xmap(response, query_path)}
             {:error, reason} ->
               {:error, reason}
