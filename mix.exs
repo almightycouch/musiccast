@@ -43,6 +43,8 @@ defmodule MusicCast.Mixfile do
     [{:httpoison, "~> 0.11"},
      {:poison, "~> 3.1"},
      {:sweet_xml, "~> 0.6"},
+     {:plug, "~> 1.3", only: :dev},
+     {:cowboy, "~> 1.1", only: :dev},
      {:ex_doc, "~> 0.14", only: :dev, runtime: false}]
   end
 end
