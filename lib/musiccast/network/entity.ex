@@ -33,6 +33,7 @@ defmodule MusicCast.Network.Entity do
   use GenServer
 
   alias MusicCast.ExtendedControl, as: YXC
+  alias MusicCast.UPnP.AVTransport
 
   defstruct host: nil,
             upnp: nil,
@@ -57,6 +58,10 @@ defmodule MusicCast.Network.Entity do
     GenServer.start_link(__MODULE__, {addr, upnp_desc}, options)
   end
 
+  def load_url(pid, url) do
+    GenServer.call(pid, {:upnp_action, "AVTransport", :set_av_transport_uri, url})
+  end
+
   @doc """
   Looks-up the value(s) for the given key(s).
   """
@@ -64,7 +69,6 @@ defmodule MusicCast.Network.Entity do
   def __lookup__(pid, keys) do
     GenServer.call(pid, {:lookup, keys})
   end
-
 
   #
   # Callbacks
@@ -94,6 +98,12 @@ defmodule MusicCast.Network.Entity do
     else
       {:error, reason} -> {:stop, reason}
     end
+  end
+
+  def handle_call({:upnp_action, service_id, :set_av_transport_uri, url}, _from, state) do
+    service = Enum.find(state.upnp.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:#{service_id}")
+    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, []),
+         :ok <- AVTransport.play(service.control_url, 0, 1), do: {:reply, :ok, state}
   end
 
   def handle_call({:lookup, keys}, _from, state) do

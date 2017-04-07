@@ -71,7 +71,8 @@ defmodule MusicCast.UPnP.Service do
           case unquote(__MODULE__).call_action(url, unquote(urn), unquote(name), tags) do
             {:ok, response} ->
               query_path = Enum.map(unquote(Macro.escape(cmd_args["out"] || [])), &{String.to_atom(Macro.underscore(&1.name)), ~x"./#{&1.name}/text()"s})
-              {:ok, xmap(response, query_path)}
+              result_map = xmap(response, query_path)
+              if map_size(result_map) == 0, do: :ok, else: {:ok, result_map}
             {:error, reason} ->
               {:error, reason}
           end
