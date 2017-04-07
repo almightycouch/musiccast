@@ -162,7 +162,7 @@ defmodule MusicCast.Network.Entity do
 
   defp update_playback_state(state) do
     case YXC.get_playback_info(state.host) do
-      {:ok, playback} -> %{state | playback: playback}
+      {:ok, playback} -> %{state | playback: atomize_map(playback)}
       {:error, _reason} -> state
     end
   end
