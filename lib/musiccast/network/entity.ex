@@ -28,26 +28,11 @@ defmodule MusicCast.Network.Entity do
       %{}
 
   See `t:lookup_keys/0` for a list of available lookup keys.
-
-  The `MusicCast.Network.Entity` module provides all the *setter* functions available by
-  the Yamaha Extended Control REST API. See `MusicCast.ExtendedControl` for a list of available functions.
-
-      iex> {:ok, pid} = MusicCast.subscribe("ABCDEF01")
-      {:ok, pid}
-      iex> MusicCast.Network.Entity.set_volume(pid, 30)
-      :ok
-      iex> MusicCast.Network.Entity.set_playback(pid, "play")
-      :ok
-      iex> flush()
-      {:extended_control, :update, "ABCDEF01", %{status: %{volume: 30}}}
-      {:extended_control, :update, "ABCDEF01", %{playback: %{playback: "play"}}}
   """
 
   use GenServer
 
   alias MusicCast.ExtendedControl, as: YXC
-
-  use GenImpl, for: MusicCast.ExtendedControl
 
   defstruct host: nil,
             upnp: nil,
@@ -108,15 +93,6 @@ defmodule MusicCast.Network.Entity do
                         playback: playback}}
     else
       {:error, reason} -> {:stop, reason}
-    end
-  end
-
-  def handle_call({:gen_impl, module, {fun, args}}, _from, state) do
-    case apply(module, fun, [state.host|args]) do
-      {:ok, resp} ->
-        {:reply, {:ok, resp}, state}
-      {:error, reason} ->
-        {:reply, {:error, reason}, state}
     end
   end
 
