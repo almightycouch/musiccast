@@ -46,7 +46,7 @@ defmodule MusicCast.Network.Entity do
   @type device_id :: String.t
   @type upnp_desc :: Map.t
 
-  @type lookup_key :: :host | :upnp | :device_id | :network_name | :status | :playback
+  @type lookup_key :: :host |   :upnp | :device_id | :network_name | :status | :playback
   @type lookup_keys :: [lookup_key] | lookup_key
 
   @doc """
@@ -86,7 +86,7 @@ defmodule MusicCast.Network.Entity do
       playback = atomize_map(playback)
       announce_device(device_id, host, network_name, status, playback)
       {:ok, %__MODULE__{host: host,
-                        upnp: upnp,
+                        upnp: upnp.device,
                         device_id: device_id,
                         network_name: network_name,
                         status: status,
