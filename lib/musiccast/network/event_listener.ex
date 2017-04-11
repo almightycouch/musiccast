@@ -17,6 +17,8 @@ defmodule MusicCast.Network.EventListener do
 	GenServer.start_link(__MODULE__, [], options)
   end
 
+  defdelegate stop(pid), to: GenServer
+
   #
   # Callbacks
   #

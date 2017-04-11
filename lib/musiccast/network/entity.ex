@@ -41,6 +41,8 @@ defmodule MusicCast.Network.Entity do
     GenServer.start_link(__MODULE__, {addr, upnp_desc}, options)
   end
 
+  defdelegate stop(pid), to: GenServer
+
   @doc """
   Plays the given URL.
   """

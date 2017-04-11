@@ -29,6 +29,8 @@ defmodule MusicCast.UPnP.SSDPClient do
     GenServer.start_link(__MODULE__, [], options)
   end
 
+  defdelegate stop(pid), to: GenServer
+
   @doc """
   Broadcasts a SSDP `M-SEARCH` request on the local network.
   """

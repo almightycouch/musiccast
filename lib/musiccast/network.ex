@@ -27,6 +27,8 @@ defmodule MusicCast.Network do
     Supervisor.start_link(__MODULE__, [], options)
   end
 
+  defdelegate stop(pid), to: Supervisor
+
   @doc """
   Adds a new device entity to the network.
   """
