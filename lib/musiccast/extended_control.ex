@@ -18,12 +18,6 @@ defmodule MusicCast.ExtendedControl do
 
   Instead of using this module directly, you should use `MusicCast.Network` and `MusicCast.Network.Entity`
   which provide a better abstraction to work with MusicCast devices.
-
-  For more informations about the YXC unicast events, see `MusicCast.Network.EventListener`.
-
-  Support for advanced functionalities such as *Link mode*, group management, etc. have not been implemented yet.
-  See the [Advanced API Specification](https://www.google.com/search?as_epq=YXC_API_Spec_Advanced.pdf&as_filetype=pdf)
-  for more informations.
   """
 
   @base_path "/YamahaExtendedControl/v1"

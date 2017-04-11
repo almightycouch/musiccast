@@ -17,25 +17,12 @@ defmodule MusicCast.UPnP.Service do
   defstruct action_list: [], property_list: []
 
   @doc """
-  Returns a map representing the UPnP service.
-  """
-  @spec describe(String.t) :: {:ok, term} | {:error, term}
-  def describe(url) do
-    case HTTPoison.get(url) do
-      {:ok, %HTTPoison.Response{body: body}} ->
-        {:ok, struct(__MODULE__, deserialize_desc(body))}
-      {:error, %HTTPoison.Error{reason: reason}} ->
-        {:error, reason}
-    end
-  end
-
-  @doc """
   Calls an action on a UPnP service.
   """
   @spec call_action(String.t, String.t, String.t | Atom.t, Map.t) :: {:ok, term} | {:error, term}
-  def call_action(url, service_type, action, params) do
+  def call_action(control_url, service_type, action, params) do
     body = serialize_action(service_type, action, params)
-    case HTTPoison.post(url, body, ["SOAPAction": "\"#{service_type}##{action}\""]) do
+    case HTTPoison.post(control_url, body, ["SOAPAction": "\"#{service_type}##{action}\""]) do
       {:ok, %HTTPoison.Response{body: body, status_code: status}} when status in 200..299 ->
         {:ok, xpath(body, ~x"//s:Envelope/s:Body/u:#{action}Response[xmlns:u=#{service_type}]")}
       {:ok, %HTTPoison.Response{body: body, status_code: 500}} ->
@@ -43,6 +30,19 @@ defmodule MusicCast.UPnP.Service do
           code: ~x"./u:errorCode/text()"i,
           desc: ~x"./u:errorDescription/text()"s)
         {:error, {:upnp_error, error.code, error.desc}}
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Returns a map representing the UPnP service.
+  """
+  @spec describe(String.t) :: {:ok, term} | {:error, term}
+  def describe(service_url) do
+    case HTTPoison.get(service_url) do
+      {:ok, %HTTPoison.Response{body: body}} ->
+        {:ok, struct(__MODULE__, deserialize_desc(body))}
       {:error, %HTTPoison.Error{reason: reason}} ->
         {:error, reason}
     end
@@ -63,12 +63,12 @@ defmodule MusicCast.UPnP.Service do
       cmd_args = Enum.group_by(args, & &1.direction)
       fun_args = Enum.map(cmd_args["in"] || [], &Macro.var(String.to_atom(Macro.underscore(&1.name)), __MODULE__))
       quote do
-        def unquote(fun)(url, unquote_splicing(fun_args)) do
+        def unquote(fun)(control_url, unquote_splicing(fun_args)) do
           args = unquote(fun_args)
           tags = unquote(Macro.escape(cmd_args["in"] || []))
                  |> Enum.with_index
                  |> Enum.map(fn {%{name: name}, i} -> {name, Enum.at(args, i)} end)
-          case unquote(__MODULE__).call_action(url, unquote(urn), unquote(name), tags) do
+          case unquote(__MODULE__).call_action(control_url, unquote(urn), unquote(name), tags) do
             {:ok, response} ->
               query_path = Enum.map(unquote(Macro.escape(cmd_args["out"] || [])), &{String.to_atom(Macro.underscore(&1.name)), ~x"./#{&1.name}/text()"s})
               result_map = xmap(response, query_path)

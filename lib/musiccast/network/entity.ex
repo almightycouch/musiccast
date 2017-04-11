@@ -7,27 +7,10 @@ defmodule MusicCast.Network.Entity do
   the entity process is available to the network registry via it MusicCast device ID.
   See `MusicCast.whereis/1` and `MusicCast.which_devices/1` for more details about the network registry.
 
-      iex> {pid, host} = MusicCast.whereis("ABCDEF01")
-      {pid, {192, 168, 0, 63}}
-
   Each entity process keeps it state synchronized with the device it is paired with.
   This task is acomplished by the `MusicCast.Network.EventListener` process which forwards
   incoming YXC unicast messages to the affected entity processes.
   See `MusicCast.subscribe/1` and `MusicCast.unsubscribe/1` for more details.
-
-  ## Yamaha Extended Control (YXC)
-
-  As described previously, an entity automatically keeps it state synchronized to the device it is connected to.
-  In order to fetch the current state of an entity, use the `__lookup__/2` function:
-
-      iex> {pid, host} = MusicCast.whereis("ABCDEF01")
-      {pid, {192, 168, 0, 63}}
-      iex> MusicCast.Network.Entity.__lookup__(pid, :network_name)
-      "Wohnzimmer"
-      iex> MusicCast.Network.Entity.__lookup__(pid, :status)
-      %{}
-
-  See `t:lookup_keys/0` for a list of available lookup keys.
   """
 
   use GenServer
@@ -58,7 +41,11 @@ defmodule MusicCast.Network.Entity do
     GenServer.start_link(__MODULE__, {addr, upnp_desc}, options)
   end
 
-  def load_url(pid, url) do
+  @doc """
+  Plays the given URL.
+  """
+  @spec play_url(pid, String.t) :: :ok | {:error, term}
+  def play_url(pid, url) do
     GenServer.call(pid, {:upnp_action, "AVTransport", :set_av_transport_uri, url})
   end
 
@@ -100,17 +87,18 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
-  def handle_call({:upnp_action, service_id, :set_av_transport_uri, url}, _from, state) do
-    service = Enum.find(state.upnp.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:#{service_id}")
-    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, []),
-         :ok <- AVTransport.play(service.control_url, 0, 1), do: {:reply, :ok, state}
-  end
-
   def handle_call({:lookup, keys}, _from, state) do
     attrs = for key <- List.wrap(keys), Map.has_key?(state, key), do: Map.fetch!(state, key)
     if is_list(keys),
       do: {:reply, attrs, state},
     else: {:reply, List.first(attrs), state}
+  end
+
+  def handle_call({:upnp_action, service_id, :set_av_transport_uri, url}, _from, state) do
+    service = Enum.find(state.upnp.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:#{service_id}")
+    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, []),
+         :ok <- AVTransport.play(service.control_url, 0, 1), do:
+      {:reply, :ok, state}
   end
 
   def handle_info({:unicast_event, payload}, state) do

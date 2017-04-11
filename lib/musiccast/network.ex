@@ -1,6 +1,17 @@
 defmodule MusicCast.Network do
   @moduledoc """
   A module for supervising a network of MusicCast™ devices.
+
+  The network is the heart of this MusicCast application. It is responsible for discovering
+  devices on the local network (see `MusicCast.UPnP.SSDPClient`), keeping their state synchronized
+  whenever a device's state is changing and broadcasting network topology changes and device change events.
+
+  Also, the network act as a global registry for running `MusicCast.Network.Entity` processes. You can find a device on the registry
+  with `whereis/1`. To get a list of registered devices, see `which_devices/1`.
+
+  You also have the possibility to subscribe to network topoligy changes (for example, when a new device is discovered
+  or when a device goes offline). Additionally, you can subscribe to a device's changefeed directly.
+  See `subscribe/1` and `unsubscribe/1` for more details.
   """
 
   use Supervisor
