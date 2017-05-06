@@ -105,7 +105,17 @@ defmodule MusicCast.Network.Entity do
   """
   @spec __lookup__(GenServer.server, lookup_keys) :: [term] | term
   def __lookup__(pid, keys \\ :all) do
-    GenServer.call(pid, {:lookup, keys})
+    lookup_keys = Map.keys(Map.from_struct(%__MODULE__{}))
+    case keys do
+      :all ->
+        GenServer.call(pid, {:lookup, :all})
+      key when is_atom(key) ->
+        unless key in lookup_keys, do: raise ArgumentError, message: "#{inspect key} is not a valid lookup key"
+        GenServer.call(pid, {:lookup, key})
+      keys when is_list(keys) ->
+        if invalid_key = Enum.find(keys, & not &1 in lookup_keys), do: raise ArgumentError, message: "#{inspect invalid_key} is not a valid lookup key"
+        GenServer.call(pid, {:lookup, keys})
+    end
   end
 
   #
