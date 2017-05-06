@@ -69,14 +69,6 @@ defmodule MusicCast.Network.Entity do
   end
 
   @doc """
-  Plays the next track in the playback queue.
-  """
-  @spec playback_next(pid) :: :ok | {:error, term}
-  def playback_next(pid) do
-    GenServer.call(pid, {:extended_control, {:set_playback, :next}})
-  end
-
-  @doc """
   Plays the previous track in the playback queue.
   """
   @spec playback_previous(pid) :: :ok | {:error, term}
@@ -85,11 +77,43 @@ defmodule MusicCast.Network.Entity do
   end
 
   @doc """
-  Loads the given URL.
+  Plays the next track in the playback queue.
   """
-  @spec load_url(pid, String.t) :: :ok | {:error, term}
-  def load_url(pid, url) do
-    GenServer.call(pid, {:upnp_action, "AVTransport", :set_av_transport_uri, url})
+  @spec playback_next(pid) :: :ok | {:error, term}
+  def playback_next(pid) do
+    GenServer.call(pid, {:extended_control, {:set_playback, :next}})
+  end
+
+  @doc """
+  Sets the UPnP A/V transport URL to the given `url`.
+  """
+  @spec upnp_set_av_transport_url(pid, String.t) :: :ok | {:error, term}
+  def upnp_set_av_transport_url(pid, url) do
+    GenServer.call(pid, {:upnp_av_transport, {:set_av_transport_uri, [url, []]}})
+  end
+
+  @doc """
+  Begins playback of the current UPnP A/V transport URL.
+  """
+  @spec upnp_play(pid) :: :ok | {:error, term}
+  def upnp_play(pid) do
+    GenServer.call(pid, {:upnp_av_transport, {:play, 1}})
+  end
+
+  @doc """
+  Pauses playback of the current UPnP A/V transport URL.
+  """
+  @spec upnp_pause(pid) :: :ok | {:error, term}
+  def upnp_pause(pid) do
+    GenServer.call(pid, {:upnp_av_transport, {:pause, []}})
+  end
+
+  @doc """
+  Stops playback of the current UPnP A/V transport URL.
+  """
+  @spec upnp_stop(pid) :: :ok | {:error, term}
+  def upnp_stop(pid) do
+    GenServer.call(pid, {:upnp_av_transport, {:stop, []}})
   end
 
   @doc """
@@ -226,11 +250,9 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
-  def handle_call({:upnp_action, service_id, :set_av_transport_uri, url}, _from, state) do
-    service = Enum.find(state.upnp.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:#{service_id}")
-    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, []),
-         :ok <- AVTransport.play(service.control_url, 0, 1), do:
-      {:reply, :ok, state}
+  def handle_call({:upnp_av_transport, {fun, args}}, _from, state) do
+    service = Enum.find(state.upnp.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:AVTransport")
+    {:reply, apply(AVTransport, fun, [service.control_url, 0] ++ List.wrap(args)), state}
   end
 
   def handle_info({:unicast_event, payload}, state) do
