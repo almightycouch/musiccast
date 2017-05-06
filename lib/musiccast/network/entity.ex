@@ -22,6 +22,7 @@ defmodule MusicCast.Network.Entity do
             upnp: nil,
             device_id: nil,
             network_name: nil,
+            available_inputs: [],
             status: nil,
             playback: nil
 
@@ -30,7 +31,7 @@ defmodule MusicCast.Network.Entity do
   @type device_id :: String.t
   @type upnp_desc :: Map.t
 
-  @type lookup_key :: :host |   :upnp | :device_id | :network_name | :status | :playback
+  @type lookup_key :: :host | :upnp | :device_id | :network_name | :available_inputs | :status | :playback
   @type lookup_keys :: [lookup_key] | lookup_key
 
   @doc """
@@ -103,7 +104,7 @@ defmodule MusicCast.Network.Entity do
   Looks-up the value(s) for the given key(s).
   """
   @spec __lookup__(GenServer.server, lookup_keys) :: [term] | term
-  def __lookup__(pid, keys) do
+  def __lookup__(pid, keys \\ :all) do
     GenServer.call(pid, {:lookup, keys})
   end
 
@@ -119,22 +120,26 @@ defmodule MusicCast.Network.Entity do
     with host <- to_string(:inet_parse.ntoa(addr)),
          {:ok, %{"device_id" => device_id}} <- YXC.get_device_info(host, headers: headers),
          {:ok, %{"network_name" => network_name}} <- YXC.get_network_status(host),
+         {:ok, %{"system" => system}} <- YXC.get_features(host),
          {:ok, upnp} <- parse_upnp_desc(upnp_desc),
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
          {:ok, _} <- register_device(device_id, addr) do
-      status = serialize_status(status)
-      playback = serialize_playback(playback, host)
-      announce_device(device_id, host, network_name, status, playback)
-      {:ok, %__MODULE__{host: host,
-                        upnp: upnp.device,
-                        device_id: device_id,
-                        network_name: network_name,
-                        status: status,
-                        playback: playback}}
+      announce_device(%__MODULE__{
+        host: host,
+        upnp: upnp.device,
+        device_id: device_id,
+        network_name: network_name,
+        available_inputs: Enum.map(system["input_list"], & &1["id"]),
+        status: serialize_status(status),
+        playback: serialize_playback(playback, host)})
     else
       {:error, reason} -> {:stop, reason}
     end
+  end
+
+  def handle_call({:lookup, :all}, _from, state) do
+    {:reply, state, state}
   end
 
   def handle_call({:lookup, keys}, _from, state) do
@@ -165,7 +170,7 @@ defmodule MusicCast.Network.Entity do
       Enum.reduce(payload, state, fn {_, event}, state ->
         new_state = update_state(state, atomize_map(event))
         event_map = diff_state(Map.from_struct(state), Map.from_struct(new_state))
-        unless map_size(event_map) == 0, do: broadcast_event(state.device_id, :update, event_map)
+        unless map_size(event_map) == 0, do: broadcast_state_update(state.device_id, event_map)
         new_state
       end)
     {:noreply, state}
@@ -175,16 +180,16 @@ defmodule MusicCast.Network.Entity do
   # Helpers
   #
 
-  defp announce_device(device_id, host, network_name, status, playback) do
-    state = %{host: host, network_name: network_name, status: status, playback: playback}
+  defp announce_device(%__MODULE__{} = state) do
     Registry.dispatch(MusicCast.PubSub, "network", fn subscribers ->
-      for {pid, nil} <- subscribers, do: send(pid, {:extended_control, :online, device_id, state})
+      for {pid, nil} <- subscribers, do: send(pid, {:extended_control, :network, state})
     end)
+    {:ok, state}
   end
 
-  defp broadcast_event(device_id, event_type, event) do
+  defp broadcast_state_update(device_id, event) do
     Registry.dispatch(MusicCast.PubSub, device_id, fn subscribers ->
-      for {pid, nil} <- subscribers, do: send(pid, {:extended_control, event_type, device_id, event})
+      for {pid, nil} <- subscribers, do: send(pid, {:extended_control, device_id, event})
     end)
   end
 
