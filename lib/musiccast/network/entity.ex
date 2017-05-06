@@ -44,10 +44,58 @@ defmodule MusicCast.Network.Entity do
   defdelegate stop(pid), to: GenServer
 
   @doc """
-  Plays the given URL.
+  Begins playback of the current track.
   """
-  @spec play_url(pid, String.t) :: :ok | {:error, term}
-  def play_url(pid, url) do
+  @spec play(pid) :: :ok | {:error, term}
+  def play(pid) do
+    GenServer.call(pid, {:extended_control, {:set_playback, :play}})
+  end
+
+  @doc """
+  Pauses playback of the current track.
+  """
+  @spec pause(pid) :: :ok | {:error, term}
+  def pause(pid) do
+    GenServer.call(pid, {:extended_control, {:set_playback, :pause}})
+  end
+
+  @doc """
+  Loads the next track in the playback queue.
+  """
+  @spec next(pid) :: :ok | {:error, term}
+  def next(pid) do
+    GenServer.call(pid, {:extended_control, {:set_playback, :next}})
+  end
+
+  @doc """
+  Loads the previous track in the playback queue.
+  """
+  @spec previous(pid) :: :ok | {:error, term}
+  def previous(pid) do
+    GenServer.call(pid, {:extended_control, {:set_playback, :previous}})
+  end
+
+  @doc """
+  Sets the input to the given `input`.
+  """
+  @spec set_input(pid, Atom.t) :: :ok | {:error, term}
+  def set_input(pid, input) do
+    GenServer.call(pid, {:extended_control, {:set_input, input}})
+  end
+
+  @doc """
+  Sets the volume to the given `volume`.
+  """
+  @spec set_volume(pid, Integer.t) :: :ok | {:error, term}
+  def set_volume(pid, volume) do
+    GenServer.call(pid, {:extended_control, {:set_volume, volume}})
+  end
+
+  @doc """
+  Loads the given URL.
+  """
+  @spec load_url(pid, String.t) :: :ok | {:error, term}
+  def load_url(pid, url) do
     GenServer.call(pid, {:upnp_action, "AVTransport", :set_av_transport_uri, url})
   end
 
@@ -75,8 +123,8 @@ defmodule MusicCast.Network.Entity do
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
          {:ok, _} <- register_device(device_id, addr) do
-      status = atomize_map(status)
-      playback = atomize_map(playback)
+      status = serialize_status(status)
+      playback = serialize_playback(playback, host)
       announce_device(device_id, host, network_name, status, playback)
       {:ok, %__MODULE__{host: host,
                         upnp: upnp.device,
@@ -94,6 +142,15 @@ defmodule MusicCast.Network.Entity do
     if is_list(keys),
       do: {:reply, attrs, state},
     else: {:reply, List.first(attrs), state}
+  end
+
+  def handle_call({:extended_control, {fun, args}}, _from, state) do
+    case apply(YXC, fun, [state.host|List.wrap(args)]) do
+      {:ok, _resp} ->
+        {:reply, :ok, state}
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
   end
 
   def handle_call({:upnp_action, service_id, :set_av_transport_uri, url}, _from, state) do
@@ -152,7 +209,7 @@ defmodule MusicCast.Network.Entity do
 
   defp update_playback_state(state) do
     case YXC.get_playback_info(state.host) do
-      {:ok, playback} -> %{state | playback: atomize_map(playback)}
+      {:ok, playback} -> %{state | playback: serialize_playback(playback, state.host)}
       {:error, _reason} -> state
     end
   end
@@ -176,6 +233,16 @@ defmodule MusicCast.Network.Entity do
       {key, val} ->
         {String.to_atom(key), val}
     end)
+  end
+
+  defp serialize_playback(playback, host) do
+    playback
+    |> atomize_map
+    |> update_in([:albumart_url], &to_string(%URI{scheme: "http", host: host, path: &1}))
+  end
+
+  defp serialize_status(status) do
+    atomize_map(status)
   end
 
   defp parse_upnp_desc(upnp_desc) do
