@@ -54,12 +54,22 @@ defmodule MusicCast.Network do
       iex> flush()
       {:extended_control, :update, "123456", %{}}
   """
-  @spec subscribe(MusicCast.Network.Entity.device_id | :network) :: {:ok, pid} | {:error, {:not_found, MusicCast.Network.Entity.device_id}}
+  @spec subscribe(MusicCast.Network.Entity.device_id | pid | :network) :: {:ok, pid} | {:error, {:not_found, MusicCast.Network.Entity.device_id | pid}}
   def subscribe(entity \\ :network)
 
   def subscribe(:network) do
     {:ok, _} = Registry.register(MusicCast.PubSub, "network", nil)
     {:ok, Process.whereis(MusicCast.Network)}
+  end
+
+  def subscribe(pid) when is_pid(pid) do
+    case Registry.keys(MusicCast.Registry, pid) do
+      [device_id] ->
+        {:ok, _} = Registry.register(MusicCast.PubSub, device_id, nil)
+        {:ok, pid}
+      [] ->
+        {:error, {:not_found, pid}}
+    end
   end
 
   def subscribe(device_id) do
@@ -75,11 +85,20 @@ defmodule MusicCast.Network do
   @doc """
   Unsubscribes the current process from notification from the given entity.
   """
-  @spec unsubscribe(MusiCast.Network.device_id | :network) :: :ok
+  @spec unsubscribe(MusiCast.Network.device_id | pid | :network) :: :ok
   def unsubscribe(entity \\ :network)
 
   def unsubscribe(:network) do
     Registry.unregister(MusicCast.PubSub, "network")
+  end
+
+  def unsubscribe(pid) when is_pid(pid) do
+    case Registry.keys(MusicCast.Registry, pid) do
+      [device_id] ->
+        unsubscribe(device_id)
+      [] ->
+        :ok
+    end
   end
 
   def unsubscribe(device_id) do
