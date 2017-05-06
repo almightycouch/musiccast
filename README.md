@@ -6,7 +6,7 @@
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/almightycouch/musiccast/master/LICENSE)
 [![Github Issues](https://img.shields.io/github/issues/almightycouch/musiccast.svg)](http://github.com/almightycouch/musiccast/issues)
 
-![Cover image](http://fs5.directupload.net/images/170405/knpsxx54.jpg)
+![Cover image](http://imgur.com/v2E6340.jpg)
 
 Elixir implementation of Yamaha's MusicCast™ multiroom audio solution.
 
@@ -29,24 +29,25 @@ end
 Start by discovering MusicCast devices on your network:
 
 ```elixir
-:ok = MusicCast.discover()
+:ok = MusicCast.discover
 ```
 
 Devices are automatically added to `MusicCast.Network`, you can list all registered devices as follow:
 
 ```elixir
-[{pid, device_id}] = MusicCast.which_devices()
+[{pid, device_id}] = MusicCast.which_devices
 ```
 
 You can control a device using the `MusicCast.Network.Entity` module:
 
 ```elixir
-:ok = MusicCast.Network.Entity.set_volume(pid, 50)
-:ok = MusicCast.Network.Entity.set_playback(pid, "pause")
+:ok = MusicCast.Network.Entity.set_input pid, "spotify"
+:ok = MusicCast.Network.Entity.playback_pause pid
+:ok = MusicCast.Network.Entity.set_volume pid, 50
 ```
 
-You also have the possibility to subscribe to notifications from a specific device:
+You also have the possibility to subscribe to status update notifications from a specific device:
 
 ```elixir
-:ok = MusicCast.subscribe(device_id)
+:ok = MusicCast.subscribe device_id
 ```
