@@ -101,7 +101,12 @@ defmodule MusicCast.ExtendedControl do
   """
   def set_volume(host, volume, options \\ []) do
     {zone, options} = Keyword.pop(options, :zone, "main")
-    request_api(host, "/#{zone}/setVolume", Keyword.put(options, :params, %{volume: volume}))
+    {step, options} = Keyword.pop(options, :step, 10)
+    if is_integer(volume) do
+      request_api(host, "/#{zone}/setVolume", Keyword.put(options, :params, %{volume: volume}))
+    else
+      request_api(host, "/#{zone}/setVolume", Keyword.put(options, :params, %{volume: volume, step: step}))
+    end
   end
 
   @doc """
@@ -237,20 +242,26 @@ defmodule MusicCast.ExtendedControl do
   to or independent from current input.
   """
   def get_list_info(host, input, options \\ []) do
-    {offset, options} = Keyword.pop(options, :offset, 0)
+    {index, options} = Keyword.pop(options, :index, 0)
     {limit, options} = Keyword.pop(options, :limit, 8)
-    request_api(host, "/netusb/getListInfo", Keyword.put(options, :params, %{input: input, index: offset, size: limit}))
+    request_api(host, "/netusb/getListInfo", Keyword.put(options, :params, %{input: input, index: index, size: limit}))
   end
 
   @doc """
   Executes a list control command.
   """
-  def set_list_control(host, type, options \\ []), do: request_api(host, "/netusb/setListControl", Keyword.put(options, :params, %{type: type}))
+  def set_list_control(host, type, options \\ []) do
+    {index, options} = Keyword.pop(options, :index, 0)
+    request_api(host, "/netusb/setListControl", Keyword.put(options, :params, %{type: type, index: index}))
+  end
 
   @doc """
   Search for the given string.
   """
-  def set_search_string(host, search, options \\ []), do: request_api(host, "/netusb/setSearchString", Keyword.merge(options, [method: :post, query: %{string: search}]))
+  def set_search_string(host, search, options \\ []) do
+    {index, options} = Keyword.pop(options, :index, 0)
+    request_api(host, "/netusb/setSearchString", Keyword.merge(options, [method: :post, query: %{string: search, index: index}]))
+  end
 
   @doc """
   Recalls preset for the given zone.

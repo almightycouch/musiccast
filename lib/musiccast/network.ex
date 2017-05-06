@@ -45,14 +45,14 @@ defmodule MusicCast.Network do
       iex> MusicCast.subscribe(:network)
       {:ok, #PID<0.80.0>}
       iex> flush()
-      {:extended_control, :online, "123456", %{}}
+      {:extended_control, :network, %MusicCast.Network.Entity{}}
 
   Or to subscribe to status notifications from a specific device:
 
-      iex> MusicCast.subscribe("123456")
+      iex> MusicCast.subscribe("00A0DEDCF73E")
       {:ok, #PID<0.200.0>}
       iex> flush()
-      {:extended_control, :update, "123456", %{}}
+      {:extended_control, "00A0DEDCF73E", %{}}
   """
   @spec subscribe(MusicCast.Network.Entity.device_id | pid | :network) :: {:ok, pid} | {:error, {:not_found, MusicCast.Network.Entity.device_id | pid}}
   def subscribe(entity \\ :network)
@@ -85,7 +85,7 @@ defmodule MusicCast.Network do
   @doc """
   Unsubscribes the current process from notification from the given entity.
   """
-  @spec unsubscribe(MusiCast.Network.device_id | pid | :network) :: :ok
+  @spec unsubscribe(MusiCast.Network.Entity.device_id | pid | :network) :: :ok
   def unsubscribe(entity \\ :network)
 
   def unsubscribe(:network) do
@@ -122,12 +122,14 @@ defmodule MusicCast.Network do
   If you pass `:lazy` to this function, it will return a list of `{pid, device_id}` tuples:
 
       iex> MusicCast.which_devices(:lazy)
-      [{#PID<0.200.0>, "123456"}]
+      [{#PID<0.200.0>, "00A0DEDCF73E"}]
 
   Otherwise, you can pass a list of keys to lookup:
 
       iex> MusicCast.which_devices([:network_name, :host])
       [{#PID<0.200.0>, "192.168.0.63", "Schlafzimmer"}]
+
+  See `MusicCast.Network.Entity.__lookup__/2` for more informations about available lookup options.
   """
   @spec which_devices(MusicCast.Network.Entity.lookup_keys | :lazy) :: [tuple]
   def which_devices(keys \\ :lazy)

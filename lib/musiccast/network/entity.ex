@@ -47,49 +47,41 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Begins playback of the current track.
   """
-  @spec play(pid) :: :ok | {:error, term}
-  def play(pid) do
+  @spec playback_play(pid) :: :ok | {:error, term}
+  def playback_play(pid) do
     GenServer.call(pid, {:extended_control, {:set_playback, :play}})
   end
 
   @doc """
   Pauses playback of the current track.
   """
-  @spec pause(pid) :: :ok | {:error, term}
-  def pause(pid) do
+  @spec playback_pause(pid) :: :ok | {:error, term}
+  def playback_pause(pid) do
     GenServer.call(pid, {:extended_control, {:set_playback, :pause}})
   end
 
   @doc """
-  Loads the next track in the playback queue.
+  Stops playback.
   """
-  @spec next(pid) :: :ok | {:error, term}
-  def next(pid) do
+  @spec playback_stop(pid) :: :ok | {:error, term}
+  def playback_stop(pid) do
+    GenServer.call(pid, {:extended_control, {:set_playback, :stop}})
+  end
+
+  @doc """
+  Plays the next track in the playback queue.
+  """
+  @spec playback_next(pid) :: :ok | {:error, term}
+  def playback_next(pid) do
     GenServer.call(pid, {:extended_control, {:set_playback, :next}})
   end
 
   @doc """
-  Loads the previous track in the playback queue.
+  Plays the previous track in the playback queue.
   """
-  @spec previous(pid) :: :ok | {:error, term}
-  def previous(pid) do
+  @spec playback_previous(pid) :: :ok | {:error, term}
+  def playback_previous(pid) do
     GenServer.call(pid, {:extended_control, {:set_playback, :previous}})
-  end
-
-  @doc """
-  Sets the input to the given `input`.
-  """
-  @spec set_input(pid, Atom.t) :: :ok | {:error, term}
-  def set_input(pid, input) do
-    GenServer.call(pid, {:extended_control, {:set_input, input}})
-  end
-
-  @doc """
-  Sets the volume to the given `volume`.
-  """
-  @spec set_volume(pid, Integer.t) :: :ok | {:error, term}
-  def set_volume(pid, volume) do
-    GenServer.call(pid, {:extended_control, {:set_volume, volume}})
   end
 
   @doc """
@@ -98,6 +90,72 @@ defmodule MusicCast.Network.Entity do
   @spec load_url(pid, String.t) :: :ok | {:error, term}
   def load_url(pid, url) do
     GenServer.call(pid, {:upnp_action, "AVTransport", :set_av_transport_uri, url})
+  end
+
+  @doc """
+  Selects the given `input`.
+
+  To get a list of available inputs for a specific device, pass `:available_inputs` to `__lookup__/2`.
+  """
+  @spec select_input(pid, Atom.t) :: :ok | {:error, term}
+  def select_input(pid, input) do
+    GenServer.call(pid, {:extended_control, {:set_input, input}})
+  end
+
+  @doc """
+  Sets the volume to the given `volume`.
+  """
+  @spec set_volume(pid, Integer.t) :: :ok | {:error, term}
+  def set_volume(pid, volume) when is_integer(pid) do
+    GenServer.call(pid, {:extended_control, {:set_volume, volume}})
+  end
+
+  @doc """
+  Increases the volume by `step`.
+  """
+  @spec increase_volume(pid, Integer.t) :: :ok | {:error, term}
+  def increase_volume(pid, step \\ 10) when is_integer(step) do
+    GenServer.call(pid, {:extended_control, {:set_volume, ["up", [step: step]]}})
+  end
+
+  @doc """
+  Decreases the volume by `step`.
+  """
+  @spec decrease_volume(pid, Integer.t) :: :ok | {:error, term}
+  def decrease_volume(pid, step \\ 10) when is_integer(step) do
+    GenServer.call(pid, {:extended_control, {:set_volume, ["down", [step: step]]}})
+  end
+
+  @doc """
+  Mutes the volume.
+  """
+  @spec mute(pid) :: :ok | {:error, term}
+  def mute(pid) do
+    GenServer.call(pid, {:extended_control, {:set_mute, true}})
+  end
+
+  @doc """
+  Unmutes the volume.
+  """
+  @spec unmute(pid) :: :ok | {:error, term}
+  def unmute(pid) do
+    GenServer.call(pid, {:extended_control, {:set_mute, false}})
+  end
+
+  @doc """
+  Toggles repeat settings.
+  """
+  @spec toggle_repeat(pid) :: :ok | {:error, term}
+  def toggle_repeat(pid) do
+    GenServer.call(pid, {:extended_control, {:toggle_repeat, []}})
+  end
+
+  @doc """
+  Toggles repeat settings.
+  """
+  @spec toggle_shuffle(pid) :: :ok | {:error, term}
+  def toggle_shuffle(pid) do
+    GenServer.call(pid, {:extended_control, {:toggle_shuffle, []}})
   end
 
   @doc """
