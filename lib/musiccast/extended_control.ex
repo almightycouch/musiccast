@@ -320,6 +320,17 @@ defmodule MusicCast.ExtendedControl do
   """
   def toggle_cd_shuffle(host, options \\ []), do: request_api(host, "/cd/toggleShuffle", options)
 
+  @doc """
+  Returns the HTTP headers required to subscribe to YXC events.
+  """
+  def subscription_headers do
+    [{"X-AppName", "MusicCast/1.50"}, {"X-AppPort", 41100}]
+  end
+
+  @doc """
+  Return the timeout after a MusicCast device will stop sending YXC events.
+  """
+  def subscription_timeout, do: 60 * 1_000
 
   #
   # Helpers

@@ -205,12 +205,8 @@ defmodule MusicCast.Network.Entity do
   #
 
   def init({addr, upnp_desc}) do
-    headers = [
-      {"X-AppName", "MusicCast/1.50"},
-      {"X-AppPort", 41100}
-    ]
     with host <- to_string(:inet_parse.ntoa(addr)),
-         {:ok, %{"device_id" => device_id}} <- YXC.get_device_info(host, headers: headers),
+         {:ok, %{"device_id" => device_id}} <- YXC.get_device_info(host, headers: YXC.subscription_headers()),
          {:ok, %{"network_name" => network_name}} <- YXC.get_network_status(host),
          {:ok, %{"system" => system}} <- YXC.get_features(host),
          {:ok, upnp} <- parse_upnp_desc(upnp_desc),
@@ -255,6 +251,16 @@ defmodule MusicCast.Network.Entity do
     {:reply, apply(AVTransport, fun, [service.control_url, 0] ++ List.wrap(args)), state}
   end
 
+  def handle_info(:timeout, state) do
+    case YXC.get_status(state.host, headers: YXC.subscription_headers()) do
+      {:ok, status} ->
+        Process.send_after(self(), :timeout, YXC.subscription_timeout())
+        {:noreply, struct(state, status: status)}
+      {:error, reason} ->
+        {:stop, reason, state}
+    end
+  end
+
   def handle_info({:unicast_event, payload}, state) do
     state =
       Enum.reduce(payload, state, fn {_, event}, state ->
@@ -274,7 +280,7 @@ defmodule MusicCast.Network.Entity do
     Registry.dispatch(MusicCast.PubSub, "network", fn subscribers ->
       for {pid, nil} <- subscribers, do: send(pid, {:extended_control, :network, state})
     end)
-    {:ok, state}
+    {:ok, state, YXC.subscription_timeout()}
   end
 
   defp broadcast_state_update(device_id, event) do
@@ -304,7 +310,7 @@ defmodule MusicCast.Network.Entity do
 
   defp update_playback_state(state) do
     case YXC.get_playback_info(state.host) do
-      {:ok, playback} -> %{state | playback: serialize_playback(playback, state.host)}
+      {:ok, playback} -> struct(state, playback: serialize_playback(playback, state.host))
       {:error, _reason} -> state
     end
   end
