@@ -339,9 +339,9 @@ defmodule MusicCast.Network.Entity do
   end
 
   defp serialize_playback(playback, host) do
-    playback
-    |> atomize_map
-    |> update_in([:albumart_url], &to_string(%URI{scheme: "http", host: host, path: &1}))
+    update_in(atomize_map(playback), [:albumart_url], fn path ->
+      unless path == "", do: to_string(%URI{scheme: "http", host: host, path: path})
+    end)
   end
 
   defp serialize_status(status) do
