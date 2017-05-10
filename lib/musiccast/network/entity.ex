@@ -306,7 +306,7 @@ defmodule MusicCast.Network.Entity do
   end
 
   defp update_state(state, nil),   do: state
-  defp update_state(state, event), do: update_in(state.status, &Map.merge(&1, event))
+  defp update_state(state, event), do: update_in(state.playback, &Map.merge(&1, event))
 
   defp update_playback_state(state) do
     case YXC.get_playback_info(state.host) do
