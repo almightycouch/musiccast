@@ -34,6 +34,8 @@ defmodule MusicCast.Network.Entity do
   @type lookup_key :: :host | :upnp | :device_id | :network_name | :available_inputs | :status | :playback
   @type lookup_keys :: [lookup_key] | lookup_key
 
+  @type lookup_results :: [term] | term
+
   @doc """
   Starts an entity as part of a supervision tree.
   """
@@ -185,7 +187,7 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Looks-up the value(s) for the given key(s).
   """
-  @spec __lookup__(GenServer.server, lookup_keys) :: [term] | term
+  @spec __lookup__(GenServer.server, lookup_keys) :: lookup_results
   def __lookup__(pid, keys \\ :all) do
     lookup_keys = Map.keys(Map.from_struct(%__MODULE__{}))
     case keys do

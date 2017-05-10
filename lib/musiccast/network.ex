@@ -119,7 +119,7 @@ defmodule MusicCast.Network do
   @doc """
   Looks-up the given key(s) for the given entity.
   """
-  @spec lookup(MusicCast.Network.Entity.device_id | pid) :: term | [term] | nil
+  @spec lookup(MusicCast.Network.Entity.device_id | pid, MusicCast.Network.Entity.lookup_keys) :: MusicCast.Network.Entity.lookup_results
   def lookup(entity, keys \\ :all)
 
   def lookup(pid, keys) when is_pid(pid), do: Entity.__lookup__(pid, keys)
@@ -141,7 +141,7 @@ defmodule MusicCast.Network do
   Otherwise, you can pass a list of keys to lookup:
 
       iex> MusicCast.which_devices([:network_name, :host])
-      [{#PID<0.200.0>, "192.168.0.63", "Schlafzimmer"}]
+      [{#PID<0.200.0>, "Schlafzimmer", "192.168.0.63"}]
 
   See `MusicCast.Network.Entity.__lookup__/2` for more informations about available lookup options.
   """
