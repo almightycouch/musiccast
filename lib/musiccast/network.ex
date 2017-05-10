@@ -117,6 +117,20 @@ defmodule MusicCast.Network do
   end
 
   @doc """
+  Looks-up the given key(s) for the given entity.
+  """
+  @spec lookup(MusicCast.Network.Entity.device_id | pid) :: term | [term] | nil
+  def lookup(entity, keys \\ :all)
+
+  def lookup(pid, keys) when is_pid(pid), do: Entity.__lookup__(pid, keys)
+  def lookup(device_id, keys) do
+    case whereis(device_id) do
+      {pid, _host} -> lookup(pid, keys)
+      nil -> nil
+    end
+  end
+
+  @doc """
   Returns a list of all registered devices.
 
   If you pass `:lazy` to this function, it will return a list of `{pid, device_id}` tuples:
@@ -139,7 +153,7 @@ defmodule MusicCast.Network do
   end
 
   def which_devices(keys) do
-    Enum.map(fetch_devices(), &lookup(&1, keys))
+    Enum.map(fetch_devices(), &lookup_device(&1, keys))
   end
 
   #
@@ -159,7 +173,7 @@ defmodule MusicCast.Network do
     Enum.map(Supervisor.which_children(__MODULE__), &elem(&1, 1))
   end
 
-  defp lookup(pid, keys) do
+  defp lookup_device(pid, keys) do
     pid
     |> Entity.__lookup__(keys)
     |> List.wrap()
