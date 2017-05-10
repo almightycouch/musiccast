@@ -59,8 +59,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_play_url(pid, String.t, Map.t) :: :ok | {:error, term}
   def playback_play_url(pid, url, meta) do
-    url_meta = upnp_av_transport_uri_meta(Map.put(meta, :url, url))
-    GenServer.call(pid, {:upnp_play_url, url, url_meta})
+    GenServer.call(pid, {:upnp_play_url, url, meta})
   end
 
   @doc """
@@ -342,19 +341,6 @@ defmodule MusicCast.Network.Entity do
     rescue
       e -> {:error, e.message}
     end
-  end
-
-  defp upnp_av_transport_uri_meta(meta) do
-    ~s(<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dc="http://purl.org/dc/elements/1.1/">
-       <item id="f-0" parentID="0" restricted="0">
-         <dc:title>#{meta.title}</dc:title>
-         <upnp:album>#{meta.album}</upnp:album>
-         <upnp:albumArtURI>#{meta.album_cover_url}</upnp:albumArtURI>
-         <upnp:artist>#{meta.artist}</upnp:artist>
-         <upnp:class>object.item.audioItem.musicTrack</upnp:class>
-         <res protocolInfo="#{meta.dlna_content_features}">#{meta.url}</res>
-       </item>
-       </DIDL-Lite>)
   end
 
   defp prefix_upnp_device_urls(%{icon_list: icon_list, service_list: service_list} = device, base_url) do

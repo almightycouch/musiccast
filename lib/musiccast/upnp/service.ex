@@ -62,6 +62,7 @@ defmodule MusicCast.UPnP.Service do
       fun = String.to_atom(Macro.underscore(name))
       cmd_args = Enum.group_by(args, & &1.direction)
       fun_args = Enum.map(cmd_args["in"] || [], &Macro.var(String.to_atom(Macro.underscore(&1.name)), __MODULE__))
+      sig_size = length(fun_args) + 1
       quote do
         def unquote(fun)(control_url, unquote_splicing(fun_args)) do
           args = unquote(fun_args)
@@ -77,6 +78,7 @@ defmodule MusicCast.UPnP.Service do
               {:error, reason}
           end
         end
+        defoverridable [{unquote(fun), unquote(sig_size)}]
       end
     end
   end
