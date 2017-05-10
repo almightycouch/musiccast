@@ -55,6 +55,15 @@ defmodule MusicCast.Network.Entity do
   end
 
   @doc """
+  Begins playback of the current track URL.
+  """
+  @spec playback_play_url(pid, String.t, Map.t) :: :ok | {:error, term}
+  def playback_play_url(pid, url, meta) do
+    url_meta = upnp_av_transport_uri_meta(Map.put(meta, :url, url))
+    GenServer.call(pid, {:upnp_play_url, url, url_meta})
+  end
+
+  @doc """
   Pauses playback of the current track.
   """
   @spec playback_pause(pid) :: :ok | {:error, term}
@@ -84,38 +93,6 @@ defmodule MusicCast.Network.Entity do
   @spec playback_next(pid) :: :ok | {:error, term}
   def playback_next(pid) do
     GenServer.call(pid, {:extended_control, {:set_playback, :next}})
-  end
-
-  @doc """
-  Sets the UPnP A/V transport URL to the given `url`.
-  """
-  @spec upnp_set_av_transport_url(pid, String.t) :: :ok | {:error, term}
-  def upnp_set_av_transport_url(pid, url) do
-    GenServer.call(pid, {:upnp_av_transport, {:set_av_transport_uri, [url, []]}})
-  end
-
-  @doc """
-  Begins playback of the current UPnP A/V transport URL.
-  """
-  @spec upnp_play(pid) :: :ok | {:error, term}
-  def upnp_play(pid) do
-    GenServer.call(pid, {:upnp_av_transport, {:play, 1}})
-  end
-
-  @doc """
-  Pauses playback of the current UPnP A/V transport URL.
-  """
-  @spec upnp_pause(pid) :: :ok | {:error, term}
-  def upnp_pause(pid) do
-    GenServer.call(pid, {:upnp_av_transport, {:pause, []}})
-  end
-
-  @doc """
-  Stops playback of the current UPnP A/V transport URL.
-  """
-  @spec upnp_stop(pid) :: :ok | {:error, term}
-  def upnp_stop(pid) do
-    GenServer.call(pid, {:upnp_av_transport, {:stop, []}})
   end
 
   @doc """
@@ -248,9 +225,14 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
-  def handle_call({:upnp_av_transport, {fun, args}}, _from, state) do
+  def handle_call({:upnp_play_url, url, meta}, _from, state) do
     service = Enum.find(state.upnp.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:AVTransport")
-    {:reply, apply(AVTransport, fun, [service.control_url, 0] ++ List.wrap(args)), state}
+    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, meta),
+         :ok <- AVTransport.play(service.control_url, 0, 1) do
+      {:reply, :ok, state}
+    else
+      err -> {:reply, err, state}
+    end
   end
 
   def handle_info(:timeout, state) do
@@ -360,6 +342,19 @@ defmodule MusicCast.Network.Entity do
     rescue
       e -> {:error, e.message}
     end
+  end
+
+  defp upnp_av_transport_uri_meta(meta) do
+    ~s(<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+       <item id="f-0" parentID="0" restricted="0">
+         <dc:title>#{meta.title}</dc:title>
+         <upnp:album>#{meta.album}</upnp:album>
+         <upnp:albumArtURI>#{meta.album_cover_url}</upnp:albumArtURI>
+         <upnp:artist>#{meta.artist}</upnp:artist>
+         <upnp:class>object.item.audioItem.musicTrack</upnp:class>
+         <res protocolInfo="#{meta.dlna_content_features}">#{meta.url}</res>
+       </item>
+       </DIDL-Lite>)
   end
 
   defp prefix_upnp_device_urls(%{icon_list: icon_list, service_list: service_list} = device, base_url) do
