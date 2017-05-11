@@ -57,9 +57,9 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Begins playback of the current track URL.
   """
-  @spec playback_play_url(pid, String.t, Map.t) :: :ok | {:error, term}
-  def playback_play_url(pid, url, meta) do
-    GenServer.call(pid, {:upnp_play_url, url, meta})
+  @spec playback_play_url(pid, String.t, String.t, Enum.t) :: :ok | {:error, term}
+  def playback_play_url(pid, url, mimetype, meta) do
+    GenServer.call(pid, {:upnp_play_url, url, %{meta| mimetype: mimetype}})
   end
 
   @doc """
@@ -226,7 +226,7 @@ defmodule MusicCast.Network.Entity do
 
   def handle_call({:upnp_play_url, url, meta}, _from, state) do
     service = Enum.find(state.upnp.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:AVTransport")
-    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, meta),
+    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, struct(AVTransport.URIMetaData, meta)),
          :ok <- AVTransport.play(service.control_url, 0, 1) do
       {:reply, :ok, state}
     else

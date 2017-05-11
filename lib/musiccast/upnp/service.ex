@@ -87,19 +87,23 @@ defmodule MusicCast.UPnP.Service do
   # Helpers
   #
 
+  defp serialize_xml(xmerl) do
+    xmerl
+    |> List.wrap()
+    |> :xmerl.export_simple(:xmerl_xml)
+    |> List.flatten()
+    |> to_string()
+  end
+
   defp serialize_action(service_type, action, params) do
     service_type
     |> body_params(action, params)
-    |> List.wrap
-    |> envelope
-    |> List.wrap
-    |> :xmerl.export_simple(:xmerl_xml)
-    |> List.flatten
-    |> to_string
+    |> envelope()
+    |> serialize_xml()
   end
 
   defp envelope(body) do
-    {:"s:Envelope", ["s:encodingStyle": "http://schemas.xmlsoap.org/soap/encoding/", "xmlns:s": "http://schemas.xmlsoap.org/soap/envelope/"], body}
+    {:"s:Envelope", ["s:encodingStyle": "http://schemas.xmlsoap.org/soap/encoding/", "xmlns:s": "http://schemas.xmlsoap.org/soap/envelope/"], List.wrap(body)}
   end
 
   defp body_params(service_type, action, params) do
