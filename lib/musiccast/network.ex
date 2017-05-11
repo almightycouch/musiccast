@@ -84,7 +84,7 @@ defmodule MusicCast.Network do
   @doc """
   Unsubscribes the current process from notification from the given entity.
   """
-  @spec unsubscribe(MusiCast.Network.Entity.device_id | pid | :network) :: :ok
+  @spec unsubscribe(MusicCast.Network.Entity.device_id | pid | :network) :: :ok
   def unsubscribe(entity \\ :network)
 
   def unsubscribe(:network) do
@@ -105,7 +105,7 @@ defmodule MusicCast.Network do
   end
 
   @doc """
-  Returns the PID and the host for the registered device id.
+  Returns the PID for the registered device id.
   """
   @spec whereis(MusicCast.Network.Entity.device_id) :: pid | nil
   def whereis(device_id) do
