@@ -73,12 +73,11 @@ defmodule MusicCast.Network do
   end
 
   def subscribe(device_id) do
-    case whereis(device_id) do
-      {pid, _host} ->
-        {:ok, _} = Registry.register(MusicCast.PubSub, device_id, nil)
-        {:ok, pid}
-      nil ->
-        {:error, {:not_found, device_id}}
+    if pid = whereis(device_id) do
+      {:ok, _} = Registry.register(MusicCast.PubSub, device_id, nil)
+      {:ok, pid}
+    else
+      {:error, {:not_found, device_id}}
     end
   end
 
@@ -108,10 +107,10 @@ defmodule MusicCast.Network do
   @doc """
   Returns the PID and the host for the registered device id.
   """
-  @spec whereis(MusicCast.Network.Entity.device_id) :: {pid, MusicCast.Network.Entity.ip_address} | nil
+  @spec whereis(MusicCast.Network.Entity.device_id) :: pid | nil
   def whereis(device_id) do
     case Registry.lookup(MusicCast.Registry, device_id) do
-      [pair] -> pair
+      [{pid, _host}] -> pid
       [] -> nil
     end
   end
@@ -124,9 +123,8 @@ defmodule MusicCast.Network do
 
   def lookup(pid, keys) when is_pid(pid), do: Entity.__lookup__(pid, keys)
   def lookup(device_id, keys) do
-    case whereis(device_id) do
-      {pid, _host} -> lookup(pid, keys)
-      nil -> nil
+    if pid = whereis(device_id) do
+      lookup(pid, keys)
     end
   end
 
