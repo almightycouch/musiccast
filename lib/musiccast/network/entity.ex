@@ -59,7 +59,8 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_play_url(pid, String.t, String.t, Enum.t) :: :ok | {:error, term}
   def playback_play_url(pid, url, mimetype, meta) do
-    GenServer.call(pid, {:upnp_play_url, url, %{meta| mimetype: mimetype}})
+    meta = Map.put(Enum.into(meta, %{}), :mimetype, mimetype)
+    GenServer.call(pid, {:upnp_play_url, url, meta})
   end
 
   @doc """
@@ -142,6 +143,14 @@ defmodule MusicCast.Network.Entity do
   @spec unmute(pid) :: :ok | {:error, term}
   def unmute(pid) do
     GenServer.call(pid, {:extended_control, {:set_mute, false}})
+  end
+
+  @doc """
+  Toggles playback state from `:play` to `:pause` and vice versa.
+  """
+  @spec toggle_play_pause(pid) :: :ok | {:error, term}
+  def toggle_play_pause(pid) do
+    GenServer.call(pid, {:extended_control, {:set_playback, :play_pause}})
   end
 
   @doc """
@@ -288,8 +297,26 @@ defmodule MusicCast.Network.Entity do
     update_playback_state(state)
   end
 
-  defp update_state(state, nil),   do: state
-  defp update_state(state, event), do: update_in(state.playback, &Map.merge(&1, event))
+  defp update_state(state, event) when is_map(event) do
+    state_map =
+      state
+      |> Map.from_struct()
+      |> update_in([:status], &apply_update(&1, event))
+      |> update_in([:playback], &apply_update(&1, event))
+    struct(__MODULE__, state_map)
+  end
+
+  defp update_state(state, nil), do: state
+
+  defp apply_update(state, event) do
+    Enum.reduce(event, state, fn {k, v}, state ->
+      if Map.has_key?(state, k) do
+        unless is_map(v),
+          do: put_in(state, [k], v),
+        else: update_in(state, [k], &apply_update(&1, v))
+      end || state
+    end)
+  end
 
   defp update_playback_state(state) do
     case YXC.get_playback_info(state.host) do
