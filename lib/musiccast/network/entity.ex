@@ -57,9 +57,8 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Begins playback of the current track URL.
   """
-  @spec playback_play_url(pid, String.t, String.t, Enum.t) :: :ok | {:error, term}
-  def playback_play_url(pid, url, mimetype, meta) do
-    meta = Map.put(Enum.into(meta, %{}), :mimetype, mimetype)
+  @spec playback_play_url(pid, String.t, Enum.t) :: :ok | {:error, term}
+  def playback_play_url(pid, url, meta) do
     GenServer.call(pid, {:upnp_play_url, url, meta})
   end
 
