@@ -242,10 +242,10 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
-  def handle_info(:timeout, state) do
+  def handle_info(:subscription_timeout = msg, state) do
     case YXC.get_status(state.host, headers: YXC.subscription_headers()) do
       {:ok, status} ->
-        Process.send_after(self(), :timeout, YXC.subscription_timeout())
+        Process.send_after(self(), msg, YXC.subscription_timeout())
         {:noreply, struct(state, status: status)}
       {:error, reason} ->
         {:stop, reason, state}
@@ -271,7 +271,8 @@ defmodule MusicCast.Network.Entity do
     Registry.dispatch(MusicCast.PubSub, "network", fn subscribers ->
       for {pid, nil} <- subscribers, do: send(pid, {:extended_control, :network, state})
     end)
-    {:ok, state, YXC.subscription_timeout()}
+    Process.send_after(self(), :subscription_timeout, YXC.subscription_timeout())
+    {:ok, state}
   end
 
   defp broadcast_state_update(device_id, event) do
