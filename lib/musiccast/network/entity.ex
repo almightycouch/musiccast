@@ -16,28 +16,36 @@ defmodule MusicCast.Network.Entity do
   use GenServer
 
   alias MusicCast.ExtendedControl, as: YXC
-  alias MusicCast.UPnP.AVTransport
+
+  alias MusicCast.UPnP.{AVTransport, Service, URIMetaData}
 
   defstruct host: nil,
-            upnp: nil,
             device_id: nil,
+            upnp_service: nil,
             network_name: nil,
             available_inputs: [],
             status: nil,
             playback: nil
 
+  @type t :: %__MODULE__ {
+    host: String.t,
+    device_id: String.t,
+    upnp_service: Service.t,
+    network_name: String.t,
+    available_inputs: [String.t],
+    status: %{},
+    playback: %{}
+  }
+
   @type ip_address :: {0..255, 0..255, 0..255, 0..255}
 
-  @type device_id :: String.t
-  @type upnp_desc :: Map.t
-
-  @type lookup_key :: :host | :upnp | :device_id | :network_name | :available_inputs | :status | :playback
+  @type lookup_key :: :host | :device_id | :upnp_service | :network_name | :available_inputs | :status | :playback
   @type lookup_query :: :all | [lookup_key] | lookup_key
 
   @doc """
   Starts an entity as part of a supervision tree.
   """
-  @spec start_link(ip_address, upnp_desc, Keyword.t) :: GenServer.on_start
+  @spec start_link(ip_address, MusicCast.UPnP.Service.t, Keyword.t) :: GenServer.on_start
   def start_link(addr, upnp_desc, options \\ []) do
     GenServer.start_link(__MODULE__, {addr, upnp_desc}, options)
   end
@@ -53,25 +61,20 @@ defmodule MusicCast.Network.Entity do
   end
 
   @doc """
-  Begins playback of the current track URL.
+  Begins playback of the given URL.
 
-  You can pass `meta` as a map or a keyword list:
+  Under the hood, this function calls `MusicCast.UPnP.AVTransport.set_av_transport_uri/4`.
+  If the UPnP action succeeds, the device will set it input source to "server" and instantly begin playback.
 
-      iex> MusicCast.Network.Entity.playback_play_url(pid, url, title: "Cumbia Sobre el Mar", artist: "Quantic", album: "Dog with a Rope", duration: 377, mimetype: "audio/mp4")
+  In order to provide more details about the given URL, you can pass extra meta data:
+
+      iex> MusicCast.Network.Entity.playback_play_url(pid, url, duration: 377, mimetype: "audio/mp4")
       :ok
 
-  A valid `:mimetype` field is mandatory, following fields are optional:
-
-  * `:title` -- Track title.
-  * `:album` -- Album name.
-  * `:album_cover_url` -- Album cover URL.
-  * `:artist` -- Artist name.
-  * `:duration` -- Track duration in second.
-
-  For implementation details, see `MusicCast.UPnP.AVTransport.set_av_transport_uri/4`.
+  The given `meta` enumerable must conform to `t:MusicCast.UPnP.URIMetaData.t/0`
   """
   @spec playback_play_url(pid, String.t, Enum.t) :: :ok | {:error, term}
-  def playback_play_url(pid, url, meta) do
+  def playback_play_url(pid, url, meta \\ nil) do
     GenServer.call(pid, {:upnp_play_url, url, meta})
   end
 
@@ -110,7 +113,7 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Selects the given `input`.
 
-  To get a list of available inputs for a specific device, pass `:available_inputs` to `__lookup__/2`.
+  To get a list of available inputs from a specific device, see `__lookup__/2`.
   """
   @spec select_input(pid, String.t) :: :ok | {:error, term}
   def select_input(pid, input) do
@@ -182,9 +185,9 @@ defmodule MusicCast.Network.Entity do
   end
 
   @doc """
-  Looks-up the value(s) for the given key(s).
+  Returns the value(s) for the given lookup key(s).
   """
-  @spec __lookup__(GenServer.server, lookup_query) :: [term] | term
+  @spec __lookup__(pid, lookup_query) :: any
   def __lookup__(pid, keys \\ :all) do
     lookup_keys = Map.keys(Map.from_struct(%__MODULE__{}))
     case keys do
@@ -208,14 +211,14 @@ defmodule MusicCast.Network.Entity do
          {:ok, %{"device_id" => device_id}} <- YXC.get_device_info(host, headers: YXC.subscription_headers()),
          {:ok, %{"network_name" => network_name}} <- YXC.get_network_status(host),
          {:ok, %{"system" => system}} <- YXC.get_features(host),
-         {:ok, upnp} <- parse_upnp_desc(upnp_desc),
+         {:ok, upnp_desc} <- serialize_upnp_desc(upnp_desc),
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
          {:ok, _} <- register_device(device_id, addr) do
       announce_device(%__MODULE__{
         host: host,
-        upnp: upnp.device,
         device_id: device_id,
+        upnp_service: upnp_desc,
         network_name: network_name,
         available_inputs: Enum.map(system["input_list"], & &1["id"]),
         status: serialize_status(status),
@@ -246,8 +249,9 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_call({:upnp_play_url, url, meta}, _from, state) do
-    service = Enum.find(state.upnp.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:AVTransport")
-    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, struct(AVTransport.URIMetaData, meta)),
+    service = Enum.find(state.upnp.device.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:AVTransport")
+    didl_meta = if meta, do: struct(URIMetaData, meta)
+    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, didl_meta),
          :ok <- AVTransport.play(service.control_url, 0, 1) do
       {:reply, :ok, state}
     else
@@ -369,7 +373,7 @@ defmodule MusicCast.Network.Entity do
     atomize_map(status)
   end
 
-  defp parse_upnp_desc(upnp_desc) do
+  defp serialize_upnp_desc(upnp_desc) do
     try do
       base_url =
         upnp_desc

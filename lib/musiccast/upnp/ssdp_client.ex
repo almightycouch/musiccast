@@ -7,7 +7,7 @@ defmodule MusicCast.UPnP.SSDPClient do
 
   Once the search request as succeeded, MusicCast devices will announce themselves through the network
   which allows the SSDP client to automatically start `MusicCast.Network.Entity` processes on the `MusicCast.Network`.
-  As default, `urn:schemas-upnp-org:device:MediaRenderer:1` is used as search target.
+  As default, `urn:schemas-upnp-org:device:MediaRenderer:1` is used as SSDP search target.
   """
 
   use GenServer
@@ -86,8 +86,8 @@ defmodule MusicCast.UPnP.SSDPClient do
   end
 
   def handle_info({:DOWN, ref, :process, _pid, _reason}, %{entities: entities} = state) do
-    entities = Enum.reject(entities, &elem(&1, 1) == ref)
-    {:noreply, %{state | entities: Map.new(entities)}}
+    entities = Map.new(Enum.reject(entities, &elem(&1, 1) == ref))
+    {:noreply, %{state | entities: entities}}
   end
 
   #
@@ -95,7 +95,7 @@ defmodule MusicCast.UPnP.SSDPClient do
   #
 
   defp mount_device(addr, desc) do
-    case MusicCast.Network.add_device(addr, desc) do
+    case MusicCast.Network.add_device(addr, struct(MusicCast.UPnP.Service, desc)) do
       {:ok, pid} ->
         Process.monitor(pid)
       {:error, {:already_registered, pid}} ->
@@ -109,7 +109,7 @@ defmodule MusicCast.UPnP.SSDPClient do
     case HTTPoison.get(url) do
       {:ok, %HTTPoison.Response{body: body, status_code: 200}} ->
         body
-        |> decode_device_info
+        |> decode_device_info()
         |> Map.put(:url, url)
       {:error, %HTTPoison.Error{}} ->
         nil

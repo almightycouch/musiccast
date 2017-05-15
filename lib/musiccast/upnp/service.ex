@@ -14,7 +14,41 @@ defmodule MusicCast.UPnP.Service do
 
   import SweetXml
 
-  defstruct action_list: [], property_list: []
+  defstruct [:device, :url, :version]
+  @type t :: %__MODULE__{
+    device: %{
+      device_type: String.t,
+      device_type: String.t,
+      friendly_name: String.t,
+      manufacturer: String.t,
+      manufacturer_url: String.t,
+      model_description: String.t,
+      model_name: String.t,
+      model_number: String.t,
+      model_url: String.t,
+      udn: String.t,
+      presentation_url: String.t,
+      icon_list: %{
+        width: Integer.t,
+        height: Integer.t,
+        depth: Integer.t,
+        mime_type: String.t,
+        url: String.t
+      },
+      service_list: %{
+        service_type: String.t,
+        service_id: String.t,
+        scpd_url: String.t,
+        control_url: String.t,
+        event_sub_url: String.t
+      }
+    },
+    url: String.t,
+    version: %{
+      major: Integer.t,
+      minor: Integer.t,
+    }
+  }
 
   @doc """
   Calls an action on a UPnP service.
@@ -42,7 +76,7 @@ defmodule MusicCast.UPnP.Service do
   def describe(service_url) do
     case HTTPoison.get(service_url) do
       {:ok, %HTTPoison.Response{body: body}} ->
-        {:ok, struct(__MODULE__, deserialize_desc(body))}
+        {:ok, deserialize_desc(body)}
       {:error, %HTTPoison.Error{reason: reason}} ->
         {:error, reason}
     end
