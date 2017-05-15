@@ -54,7 +54,7 @@ defmodule MusicCast.Network do
       iex> flush()
       {:extended_control, "00A0DEDCF73E", %{}}
   """
-  @spec subscribe(MusicCast.Network.Entity.device_id | pid | :network) :: {:ok, pid} | {:error, {:not_found, MusicCast.Network.Entity.device_id | pid}}
+  @spec subscribe(:network | MusicCast.Network.Entity.device_id | pid) :: {:ok, pid} | {:error, {:not_found, MusicCast.Network.Entity.device_id | pid}}
   def subscribe(entity \\ :network)
 
   def subscribe(:network) do
@@ -84,7 +84,7 @@ defmodule MusicCast.Network do
   @doc """
   Unsubscribes the current process from notification from the given entity.
   """
-  @spec unsubscribe(MusicCast.Network.Entity.device_id | pid | :network) :: :ok
+  @spec unsubscribe(:network | MusicCast.Network.Entity.device_id | pid) :: :ok
   def unsubscribe(entity \\ :network)
 
   def unsubscribe(:network) do
@@ -105,7 +105,7 @@ defmodule MusicCast.Network do
   end
 
   @doc """
-  Returns the PID for the registered device id.
+  Returns the PID for the registered device id or `nil` if the given `device_id` is not available.
   """
   @spec whereis(MusicCast.Network.Entity.device_id) :: pid | nil
   def whereis(device_id) do
@@ -118,7 +118,7 @@ defmodule MusicCast.Network do
   @doc """
   Looks-up the given key(s) for the given entity.
   """
-  @spec lookup(MusicCast.Network.Entity.device_id | pid, MusicCast.Network.Entity.lookup_keys) :: MusicCast.Network.Entity.lookup_results
+  @spec lookup(MusicCast.Network.Entity.device_id | pid, MusicCast.Network.Entity.lookup_query) :: [term] | term
   def lookup(entity, keys \\ :all)
 
   def lookup(pid, keys) when is_pid(pid), do: Entity.__lookup__(pid, keys)
@@ -141,9 +141,9 @@ defmodule MusicCast.Network do
       iex> MusicCast.which_devices([:network_name, :host])
       [{#PID<0.200.0>, "Schlafzimmer", "192.168.0.63"}]
 
-  See `MusicCast.Network.Entity.__lookup__/2` for more informations about available lookup options.
+  See `lookup/2` for more informations about available lookup options.
   """
-  @spec which_devices(MusicCast.Network.Entity.lookup_keys | :lazy) :: [tuple]
+  @spec which_devices(:lazy | MusicCast.Network.Entity.lookup_query) :: [tuple]
   def which_devices(keys \\ :lazy)
 
   def which_devices(:lazy) do

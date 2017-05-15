@@ -32,9 +32,7 @@ defmodule MusicCast.Network.Entity do
   @type upnp_desc :: Map.t
 
   @type lookup_key :: :host | :upnp | :device_id | :network_name | :available_inputs | :status | :playback
-  @type lookup_keys :: [lookup_key] | lookup_key
-
-  @type lookup_results :: [term] | term
+  @type lookup_query :: :all | [lookup_key] | lookup_key
 
   @doc """
   Starts an entity as part of a supervision tree.
@@ -56,6 +54,21 @@ defmodule MusicCast.Network.Entity do
 
   @doc """
   Begins playback of the current track URL.
+
+  You can pass `meta` as a map or a keyword list:
+
+      iex> MusicCast.Network.Entity.playback_play_url(pid, url, title: "Cumbia Sobre el Mar", artist: "Quantic", album: "Dog with a Rope", duration: 377, mimetype: "audio/mp4")
+      :ok
+
+  A valid `:mimetype` field is mandatory, following fields are optional:
+
+  * `:title` -- Track title.
+  * `:album` -- Album name.
+  * `:album_cover_url` -- Album cover URL.
+  * `:artist` -- Artist name.
+  * `:duration` -- Track duration in second.
+
+  For implementation details, see `MusicCast.UPnP.AVTransport.set_av_transport_uri/4`.
   """
   @spec playback_play_url(pid, String.t, Enum.t) :: :ok | {:error, term}
   def playback_play_url(pid, url, meta) do
@@ -99,7 +112,7 @@ defmodule MusicCast.Network.Entity do
 
   To get a list of available inputs for a specific device, pass `:available_inputs` to `__lookup__/2`.
   """
-  @spec select_input(pid, Atom.t) :: :ok | {:error, term}
+  @spec select_input(pid, String.t) :: :ok | {:error, term}
   def select_input(pid, input) do
     GenServer.call(pid, {:extended_control, {:set_input, input}})
   end
@@ -171,7 +184,7 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Looks-up the value(s) for the given key(s).
   """
-  @spec __lookup__(GenServer.server, lookup_keys) :: lookup_results
+  @spec __lookup__(GenServer.server, lookup_query) :: [term] | term
   def __lookup__(pid, keys \\ :all) do
     lookup_keys = Map.keys(Map.from_struct(%__MODULE__{}))
     case keys do
