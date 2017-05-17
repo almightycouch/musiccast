@@ -1,6 +1,6 @@
 defmodule MusicCast.UPnP.Service do
   @moduledoc """
-  A module for working with UPnP A/V services.
+  A module for generating UPnP A/V compliant services.
 
   ## Example
 
@@ -90,31 +90,34 @@ defmodule MusicCast.UPnP.Service do
       |> Macro.underscore
       |> Kernel.<>(".xml")
     path = Path.join(:code.priv_dir(Keyword.get(options, :priv, :musiccast)), file_name)
-    service = deserialize_desc(File.stream!(path))
+    external_resource = quote do: @external_resource  unquote(path)
     urn = "urn:schemas-upnp-org:service:" <> type_spec
-    for %{name: name, argument_list: args} <- service.action_list do
-      fun = String.to_atom(Macro.underscore(name))
-      cmd_args = Enum.group_by(args, & &1.direction)
-      fun_args = Enum.map(cmd_args["in"] || [], &Macro.var(String.to_atom(Macro.underscore(&1.name)), __MODULE__))
-      sig_size = length(fun_args) + 1
-      quote do
-        def unquote(fun)(control_url, unquote_splicing(fun_args)) do
-          args = unquote(fun_args)
-          tags = unquote(Macro.escape(cmd_args["in"] || []))
-                 |> Enum.with_index
-                 |> Enum.map(fn {%{name: name}, i} -> {name, Enum.at(args, i)} end)
-          case unquote(__MODULE__).call_action(control_url, unquote(urn), unquote(name), tags) do
-            {:ok, response} ->
-              query_path = Enum.map(unquote(Macro.escape(cmd_args["out"] || [])), &{String.to_atom(Macro.underscore(&1.name)), ~x"./#{&1.name}/text()"s})
-              result_map = xmap(response, query_path)
-              if map_size(result_map) == 0, do: :ok, else: {:ok, result_map}
-            {:error, reason} ->
-              {:error, reason}
+    service = deserialize_desc(File.stream!(path))
+    actions =
+      for %{name: name, argument_list: args} <- service.action_list do
+        fun = String.to_atom(Macro.underscore(name))
+        cmd_args = Enum.group_by(args, & &1.direction)
+        fun_args = Enum.map(cmd_args["in"] || [], &Macro.var(String.to_atom(Macro.underscore(&1.name)), __MODULE__))
+        sig_size = length(fun_args) + 1
+        quote do
+          def unquote(fun)(control_url, unquote_splicing(fun_args)) do
+            args = unquote(fun_args)
+            tags = unquote(Macro.escape(cmd_args["in"] || []))
+                   |> Enum.with_index
+                   |> Enum.map(fn {%{name: name}, i} -> {name, Enum.at(args, i)} end)
+            case unquote(__MODULE__).call_action(control_url, unquote(urn), unquote(name), tags) do
+              {:ok, response} ->
+                query_path = Enum.map(unquote(Macro.escape(cmd_args["out"] || [])), &{String.to_atom(Macro.underscore(&1.name)), ~x"./#{&1.name}/text()"s})
+                result_map = xmap(response, query_path)
+                if map_size(result_map) == 0, do: :ok, else: {:ok, result_map}
+              {:error, reason} ->
+                {:error, reason}
+            end
           end
+          defoverridable [{unquote(fun), unquote(sig_size)}]
         end
-        defoverridable [{unquote(fun), unquote(sig_size)}]
       end
-    end
+    [external_resource|actions]
   end
 
   #
