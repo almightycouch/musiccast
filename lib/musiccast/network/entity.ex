@@ -124,7 +124,7 @@ defmodule MusicCast.Network.Entity do
   Sets the volume to the given `volume`.
   """
   @spec set_volume(pid, Integer.t) :: :ok | {:error, term}
-  def set_volume(pid, volume) when is_integer(pid) do
+  def set_volume(pid, volume) when is_integer(volume) do
     GenServer.call(pid, {:extended_control, {:set_volume, volume}})
   end
 
@@ -249,7 +249,7 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_call({:upnp_play_url, url, meta}, _from, state) do
-    service = Enum.find(state.upnp.device.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:AVTransport")
+    service = Enum.find(state.upnp_service.device.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:AVTransport")
     didl_meta = if meta, do: struct(URIMetaData, meta)
     with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, didl_meta),
          :ok <- AVTransport.play(service.control_url, 0, 1) do
