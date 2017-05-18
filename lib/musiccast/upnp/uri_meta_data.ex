@@ -13,19 +13,27 @@ defmodule MusicCast.UPnP.URIMetaData do
     mimetype: String.t
   }
 
+  @type didl_item :: {String.t, t}
+
   @doc """
-  Returns a DIDL-Lite XML represention of the given `url` and `meta` data.
+  Returns a DIDL-Lite XML represention of the given `items`.
+
+  This function excepts a list of `{url, %MusicCast.UPnP.URIMetaData{}}` tuples.
   """
-  @spec didl_lite(String.t, t) :: String.t
-  def didl_lite(url, %__MODULE__{} = meta) do
+  @spec didl_lite([didl_item]) :: String.t
+  def didl_lite(items) do
     to_string([
       ~s(<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dc="http://purl.org/dc/elements/1.1/">),
-        ~s(<item id="f-0" parentID="0" restricted="0">),
-          ~s(<upnp:class>object.item.audioItem.musicTrack</upnp:class>),
-          didl_fields(meta),
-          ~s(<res protocolInfo="#{dlna_protocol_info(meta.mimetype)}" duration="#{duration(meta.duration)}">#{url}</res>),
-        ~s(</item>),
+        Enum.map(items, &didl_item/1),
       ~s(</DIDL-Lite>)])
+  end
+
+  defp didl_item({url, meta}) do
+    [~s(<item id="f-0" parentID="0" restricted="0">),
+      ~s(<upnp:class>object.item.audioItem.musicTrack</upnp:class>),
+      didl_fields(meta),
+      ~s(<res protocolInfo="#{dlna_protocol_info(meta.mimetype)}" duration="#{duration(meta.duration)}">#{url}</res>),
+    ~s(</item>)]
   end
 
   @doc """
