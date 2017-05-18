@@ -55,6 +55,7 @@ defmodule MusicCast.UPnP.SSDPClient do
 
     case :gen_udp.open(@multicast_port, udp_options) do
       {:ok, sock} ->
+        discover()
         {:ok, %{sock: sock, entities: %{}}}
       {:error, reason} ->
         {:stop, reason}
