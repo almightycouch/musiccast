@@ -1,6 +1,6 @@
 defmodule MusicCast.UPnP.Service do
   @moduledoc """
-  A module for generating UPnP A/V compliant services.
+  A module for working with UPnP compliant services.
 
   ## Example
 
@@ -50,13 +50,31 @@ defmodule MusicCast.UPnP.Service do
     }
   }
 
+  @type subscription :: {String.t, Integer.t}
+
+  @doc """
+  Returns a map representing the UPnP service.
+  """
+  @spec describe(String.t) :: {:ok, term} | {:error, term}
+  def describe(service_url) do
+    case HTTPoison.get(service_url) do
+      {:ok, %HTTPoison.Response{body: body}} ->
+        {:ok, deserialize_desc(body)}
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        {:error, reason}
+    end
+  end
+
   @doc """
   Calls an action on a UPnP service.
   """
   @spec call_action(String.t, String.t, String.t | Atom.t, Map.t) :: {:ok, term} | {:error, term}
   def call_action(control_url, service_type, action, params) do
+    headers = [
+      "SOAPAction": "\"#{service_type}##{action}\""
+    ]
     body = serialize_action(service_type, action, params)
-    case HTTPoison.post(control_url, body, ["SOAPAction": "\"#{service_type}##{action}\""]) do
+    case HTTPoison.post(control_url, body, headers) do
       {:ok, %HTTPoison.Response{body: body, status_code: status}} when status in 200..299 ->
         {:ok, xpath(body, ~x"//s:Envelope/s:Body/u:#{action}Response[xmlns:u=#{service_type}]")}
       {:ok, %HTTPoison.Response{body: body, status_code: 500}} ->
@@ -70,13 +88,32 @@ defmodule MusicCast.UPnP.Service do
   end
 
   @doc """
-  Returns a map representing the UPnP service.
+  Subscribes to a UPnP service.
   """
-  @spec describe(String.t) :: {:ok, term} | {:error, term}
-  def describe(service_url) do
-    case HTTPoison.get(service_url) do
-      {:ok, %HTTPoison.Response{body: body}} ->
-        {:ok, deserialize_desc(body)}
+  @spec subscribe(String.t, String.t, Integer.t) :: {:ok, subscription} | {:error, term}
+  def subscribe(event_url, callback_url_or_session_id, timeout \\ 1_800) do
+    headers =
+      if String.starts_with?(callback_url_or_session_id, "uuid:"),
+        do: ["SID": callback_url_or_session_id],
+      else: ["NT": "upnp:event", "CALLBACK": "<#{callback_url_or_session_id}>", "TIMEOUT": "Second-#{timeout}"]
+    case HTTPoison.request(:subscribe, event_url, "", headers) do
+      {:ok, %HTTPoison.Response{status_code: 200, headers: headers}} ->
+        %{"SID" => session_id, "TIMEOUT" => "Second-" <> timeout} = Map.new(headers)
+        {:ok, {session_id, String.to_integer(timeout)}}
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Unsubscribes from a UPnP service.
+  """
+  @spec unsubscribe(String.t, String.t) :: :ok | {:error, term}
+  def unsubscribe(event_url, session_id) do
+    headers = ["SID": session_id]
+    case HTTPoison.request(:unsubscribe, event_url, "", headers) do
+      {:ok, %HTTPoison.Response{status_code: 200}} ->
+        :ok
       {:error, %HTTPoison.Error{reason: reason}} ->
         {:error, reason}
     end
