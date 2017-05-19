@@ -20,6 +20,8 @@ defmodule MusicCast.UPnP.SSDPClient do
   @multicast_addr {239, 255, 255, 250}
   @multicast_port 1900
 
+  @auto_discover_timeout 2_000
+
   @doc """
   Starts a SSDP client as part of a supervision tree.
   """
@@ -55,7 +57,7 @@ defmodule MusicCast.UPnP.SSDPClient do
 
     case :gen_udp.open(@multicast_port, udp_options) do
       {:ok, sock} ->
-        discover()
+        Process.send_after(self(), {:"$gen_cast", :discover}, @auto_discover_timeout)
         {:ok, %{sock: sock, entities: %{}}}
       {:error, reason} ->
         {:stop, reason}

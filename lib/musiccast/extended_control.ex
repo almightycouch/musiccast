@@ -330,7 +330,7 @@ defmodule MusicCast.ExtendedControl do
   @doc """
   Return the timeout after a MusicCast device will stop sending YXC events.
   """
-  def subscription_timeout, do: 60 * 3_000
+  def subscription_timeout, do: 300
 
   #
   # Helpers

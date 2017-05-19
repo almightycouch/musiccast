@@ -58,17 +58,17 @@ defmodule MusicCast.Network do
       iex> MusicCast.subscribe(:network)
       {:ok, #PID<0.80.0>}
       iex> flush()
-      {:extended_control, :network, %MusicCast.Network.Entity{}}
+      {:musiccast, :online, %MusicCast.Network.Entity{}}
 
   Or subscribe to status notifications from a specific device:
 
       iex> MusicCast.subscribe("00A0DEDCF73E")
       {:ok, #PID<0.200.0>}
       iex> flush()
-      {:extended_control, "00A0DEDCF73E", %{}}
+      {:musiccast, :update, "00A0DEDCF73E", %{}}
   """
   @spec subscribe(:network | device_id) :: {:ok, pid}
-  def subscribe(entity \\ :network)
+  def subscribe(entity)
   def subscribe(:network),  do: Registry.register(MusicCast.PubSub, "network", nil)
   def subscribe(device_id), do: Registry.register(MusicCast.PubSub, device_id, nil)
 
@@ -76,7 +76,7 @@ defmodule MusicCast.Network do
   Unsubscribes the current process from notification from the given entity.
   """
   @spec unsubscribe(:network | device_id) :: :ok
-  def unsubscribe(entity \\ :network)
+  def unsubscribe(entity)
   def unsubscribe(:network),  do: Registry.unregister(MusicCast.PubSub, "network")
   def unsubscribe(device_id), do: Registry.unregister(MusicCast.PubSub, device_id)
 
@@ -109,7 +109,7 @@ defmodule MusicCast.Network do
   @spec which_devices(:lazy | MusicCast.Network.Entity.lookup_query) :: [tuple]
   def which_devices(keys \\ :lazy)
   def which_devices(:lazy), do: Enum.map(fetch_devices(), &{&1, List.first(Registry.keys(MusicCast.Registry, &1))})
-  def which_devices(keys),  do: Enum.map(fetch_devices(), &lookup_device(&1, keys))
+  def which_devices(keys),  do: Enum.map(fetch_devices(), &{&1, Entity.__lookup__(&1, keys)})
 
   #
   # Callbacks
@@ -126,13 +126,5 @@ defmodule MusicCast.Network do
 
   defp fetch_devices do
     Enum.map(Supervisor.which_children(__MODULE__), &elem(&1, 1))
-  end
-
-  defp lookup_device(pid, keys) do
-    pid
-    |> Entity.__lookup__(keys)
-    |> List.wrap()
-    |> List.to_tuple()
-    |> Tuple.insert_at(0, pid)
   end
 end

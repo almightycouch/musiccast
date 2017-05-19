@@ -16,12 +16,15 @@ defmodule MusicCast.Network.Entity do
   use GenServer
 
   alias MusicCast.ExtendedControl, as: YXC
-
   alias MusicCast.UPnP.{AVTransport, Service, URIMetaData}
+
+  require Logger
 
   defstruct host: nil,
             device_id: nil,
+            upnp: nil,
             upnp_service: nil,
+            upnp_session_id: nil,
             network_name: nil,
             available_inputs: [],
             status: nil,
@@ -30,7 +33,9 @@ defmodule MusicCast.Network.Entity do
   @type t :: %__MODULE__ {
     host: String.t,
     device_id: String.t,
+    upnp: AVTransport.t,
     upnp_service: Service.t,
+    upnp_session_id: String.t,
     network_name: String.t,
     available_inputs: [String.t],
     status: %{},
@@ -39,7 +44,17 @@ defmodule MusicCast.Network.Entity do
 
   @type ip_address :: {0..255, 0..255, 0..255, 0..255}
 
-  @type lookup_key :: :host | :device_id | :upnp_service | :network_name | :available_inputs | :status | :playback
+  @type lookup_key ::
+    :host |
+    :device_id |
+    :upnp |
+    :upnp_service |
+    :upnp_session_id |
+    :network_name |
+    :available_inputs |
+    :status |
+    :playback
+
   @type lookup_query :: :all | [lookup_key] | lookup_key
 
   @doc """
@@ -57,21 +72,11 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_play(pid) :: :ok | {:error, term}
   def playback_play(pid) do
-    GenServer.call(pid, {:extended_control, {:set_playback, :play}})
+    GenServer.call(pid, {:extended_control_action, {:set_playback, :play}})
   end
 
   @doc """
   Begins playback of the given URL.
-
-  Under the hood, this function calls `MusicCast.UPnP.AVTransport.set_av_transport_uri/4`.
-  If the UPnP action succeeds, the device will set it input source to "server" and instantly begin playback.
-
-  In order to provide more details about the given URL, you can pass extra meta data:
-
-      iex> MusicCast.Network.Entity.playback_play_url(pid, url, duration: 377, mimetype: "audio/mp4")
-      :ok
-
-  The given `meta` enumerable must conform to `t:MusicCast.UPnP.URIMetaData.t/0`
   """
   @spec playback_play_url(pid, String.t, Enum.t) :: :ok | {:error, term}
   def playback_play_url(pid, url, meta \\ nil) do
@@ -83,7 +88,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_pause(pid) :: :ok | {:error, term}
   def playback_pause(pid) do
-    GenServer.call(pid, {:extended_control, {:set_playback, :pause}})
+    GenServer.call(pid, {:extended_control_action, {:set_playback, :pause}})
   end
 
   @doc """
@@ -91,7 +96,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_stop(pid) :: :ok | {:error, term}
   def playback_stop(pid) do
-    GenServer.call(pid, {:extended_control, {:set_playback, :stop}})
+    GenServer.call(pid, {:extended_control_action, {:set_playback, :stop}})
   end
 
   @doc """
@@ -99,7 +104,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_previous(pid) :: :ok | {:error, term}
   def playback_previous(pid) do
-    GenServer.call(pid, {:extended_control, {:set_playback, :previous}})
+    GenServer.call(pid, {:extended_control_action, {:set_playback, :previous}})
   end
 
   @doc """
@@ -107,7 +112,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_next(pid) :: :ok | {:error, term}
   def playback_next(pid) do
-    GenServer.call(pid, {:extended_control, {:set_playback, :next}})
+    GenServer.call(pid, {:extended_control_action, {:set_playback, :next}})
   end
 
   @doc """
@@ -117,7 +122,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec select_input(pid, String.t) :: :ok | {:error, term}
   def select_input(pid, input) do
-    GenServer.call(pid, {:extended_control, {:set_input, input}})
+    GenServer.call(pid, {:extended_control_action, {:set_input, input}})
   end
 
   @doc """
@@ -125,7 +130,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec set_volume(pid, Integer.t) :: :ok | {:error, term}
   def set_volume(pid, volume) when is_integer(volume) do
-    GenServer.call(pid, {:extended_control, {:set_volume, volume}})
+    GenServer.call(pid, {:extended_control_action, {:set_volume, volume}})
   end
 
   @doc """
@@ -133,7 +138,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec increase_volume(pid, Integer.t) :: :ok | {:error, term}
   def increase_volume(pid, step \\ 10) when is_integer(step) do
-    GenServer.call(pid, {:extended_control, {:set_volume, ["up", [step: step]]}})
+    GenServer.call(pid, {:extended_control_action, {:set_volume, ["up", [step: step]]}})
   end
 
   @doc """
@@ -141,7 +146,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec decrease_volume(pid, Integer.t) :: :ok | {:error, term}
   def decrease_volume(pid, step \\ 10) when is_integer(step) do
-    GenServer.call(pid, {:extended_control, {:set_volume, ["down", [step: step]]}})
+    GenServer.call(pid, {:extended_control_action, {:set_volume, ["down", [step: step]]}})
   end
 
   @doc """
@@ -149,7 +154,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec mute(pid) :: :ok | {:error, term}
   def mute(pid) do
-    GenServer.call(pid, {:extended_control, {:set_mute, true}})
+    GenServer.call(pid, {:extended_control_action, {:set_mute, true}})
   end
 
   @doc """
@@ -157,7 +162,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec unmute(pid) :: :ok | {:error, term}
   def unmute(pid) do
-    GenServer.call(pid, {:extended_control, {:set_mute, false}})
+    GenServer.call(pid, {:extended_control_action, {:set_mute, false}})
   end
 
   @doc """
@@ -165,7 +170,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec toggle_play_pause(pid) :: :ok | {:error, term}
   def toggle_play_pause(pid) do
-    GenServer.call(pid, {:extended_control, {:set_playback, :play_pause}})
+    GenServer.call(pid, {:extended_control_action, {:set_playback, :play_pause}})
   end
 
   @doc """
@@ -173,7 +178,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec toggle_repeat(pid) :: :ok | {:error, term}
   def toggle_repeat(pid) do
-    GenServer.call(pid, {:extended_control, {:toggle_repeat, []}})
+    GenServer.call(pid, {:extended_control_action, {:toggle_repeat, []}})
   end
 
   @doc """
@@ -181,7 +186,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec toggle_shuffle(pid) :: :ok | {:error, term}
   def toggle_shuffle(pid) do
-    GenServer.call(pid, {:extended_control, {:toggle_shuffle, []}})
+    GenServer.call(pid, {:extended_control_action, {:toggle_shuffle, []}})
   end
 
   @doc """
@@ -214,11 +219,13 @@ defmodule MusicCast.Network.Entity do
          {:ok, upnp_desc} <- serialize_upnp_desc(upnp_desc),
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
+         {:ok, session_id} <- upnp_subscribe(upnp_desc),
          {:ok, _} <- register_device(device_id, addr) do
       announce_device(%__MODULE__{
         host: host,
         device_id: device_id,
         upnp_service: upnp_desc,
+        upnp_session_id: session_id,
         network_name: network_name,
         available_inputs: Enum.map(system["input_list"], & &1["id"]),
         status: serialize_status(status),
@@ -239,7 +246,7 @@ defmodule MusicCast.Network.Entity do
     else: {:reply, List.first(attrs), state}
   end
 
-  def handle_call({:extended_control, {fun, args}}, _from, state) do
+  def handle_call({:extended_control_action, {fun, args}}, _from, state) do
     case apply(YXC, fun, [state.host|List.wrap(args)]) do
       {:ok, _resp} ->
         {:reply, :ok, state}
@@ -249,35 +256,53 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_call({:upnp_play_url, url, meta}, _from, state) do
-    service = Enum.find(state.upnp_service.device.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:AVTransport")
+    service = av_transport_service(state.upnp_service.device)
     didl_meta = if meta, do: struct(URIMetaData, meta)
     with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, didl_meta),
          :ok <- AVTransport.play(service.control_url, 0, 1) do
       {:reply, :ok, state}
     else
-      err -> {:reply, err, state}
+      error -> {:reply, error, state}
     end
   end
 
-  def handle_info(:subscription_timeout = msg, state) do
+  def handle_info({:subscription_timeout, :extended_control = target}, state) do
     case YXC.get_status(state.host, headers: YXC.subscription_headers()) do
       {:ok, status} ->
-        Process.send_after(self(), msg, YXC.subscription_timeout())
+        renew_subscription(target, YXC.subscription_timeout())
         {:noreply, struct(state, status: status)}
       {:error, reason} ->
         {:stop, reason, state}
     end
   end
 
-  def handle_info({:unicast_event, payload}, state) do
+  def handle_info({:subscription_timeout, {:upnp, session_id}}, state) do
+    service = av_transport_service(state.upnp_service.device)
+    case Service.subscribe(service.event_sub_url, session_id) do
+      {:ok, {^session_id, timeout}} ->
+        renew_subscription({:upnp, session_id}, timeout)
+        {:noreply, state}
+      {:ok, {new_session_id, timeout}} ->
+        renew_subscription({:upnp, new_session_id}, timeout)
+        broadcast_state_update(state.device_id, %{upnp_session_id: new_session_id})
+        {:noreply, put_in(state.upnp_session_id, new_session_id)}
+      {:error, reason} ->
+        {:stop, reason, state}
+    end
+  end
+
+  def handle_info({:extended_control_event, payload}, state) do
     state =
       Enum.reduce(payload, state, fn {_, event}, state ->
-        new_state = update_state(state, atomize_map(event))
-        event_map = diff_state(Map.from_struct(state), Map.from_struct(new_state))
-        unless map_size(event_map) == 0, do: broadcast_state_update(state.device_id, event_map)
-        new_state
+        update_state(state, update_state(state, atomize_map(event)))
       end)
     {:noreply, state}
+  end
+
+  def handle_info({:upnp_event, payload}, state) do
+    new_state = put_in(state.upnp, payload)
+    new_state = update_state(state, new_state)
+    {:noreply, new_state}
   end
 
   #
@@ -285,21 +310,44 @@ defmodule MusicCast.Network.Entity do
   #
 
   defp announce_device(%__MODULE__{} = state) do
+    renew_subscription(:extended_control, YXC.subscription_timeout())
     Registry.dispatch(MusicCast.PubSub, "network", fn subscribers ->
-      for {pid, nil} <- subscribers, do: send(pid, {:extended_control, :network, state})
+      for {pid, nil} <- subscribers, do: send(pid, {:musiccast, :online, state})
     end)
-    Process.send_after(self(), :subscription_timeout, YXC.subscription_timeout())
     {:ok, state}
   end
 
   defp broadcast_state_update(device_id, event) do
     Registry.dispatch(MusicCast.PubSub, device_id, fn subscribers ->
-      for {pid, nil} <- subscribers, do: send(pid, {:extended_control, device_id, event})
+      for {pid, nil} <- subscribers, do: send(pid, {:musiccast, :update, device_id, event})
     end)
   end
 
   defp register_device(device_id, addr) do
     Registry.register(MusicCast.Registry, device_id, addr)
+  end
+
+  defp renew_subscription(target, timeout) do
+    Process.send_after(self(), {:subscription_timeout, target}, max(0, timeout - 3) * 1_000)
+  end
+
+  defp upnp_subscribe(upnp_desc) do
+    if callback_url = Application.get_env(:musiccast, :upnp_callback_url) do
+      service = av_transport_service(upnp_desc.device)
+      case Service.subscribe(service.event_sub_url, callback_url) do
+        {:ok, {session_id, timeout}} ->
+          renew_subscription({:upnp, session_id}, timeout)
+          {:ok, session_id}
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end || {:ok, nil}
+  end
+
+  defp update_state(%__MODULE__{} = state, %__MODULE__{} = new_state) do
+    event_map = diff_state(Map.from_struct(state), Map.from_struct(new_state))
+    unless map_size(event_map) == 0, do: broadcast_state_update(state.device_id, event_map)
+    new_state
   end
 
   defp update_state(state, %{status_updated: true} = event) do
@@ -343,8 +391,13 @@ defmodule MusicCast.Network.Entity do
   end
 
   defp diff_state(old, new) when is_map(old) and is_map(new) do
+    old = if Map.has_key?(old, :__struct__), do: Map.from_struct(old), else: old
+    new = if Map.has_key?(new, :__struct__), do: Map.from_struct(new), else: new
     Enum.reduce(new, Map.new(), &diff_value(&1, old, &2) || &2)
   end
+
+  defp diff_state(nil, new), do: new
+  defp diff_state(_old, nil), do: nil
 
   defp diff_value({k, v}, old, acc) when is_map(old) do
     unless v == old[k] do
@@ -385,6 +438,10 @@ defmodule MusicCast.Network.Entity do
     rescue
       e -> {:error, e.message}
     end
+  end
+
+  defp av_transport_service(device) do
+    Enum.find(device.service_list, nil, & &1.service_id == "urn:upnp-org:serviceId:AVTransport")
   end
 
   defp prefix_upnp_device_urls(%{icon_list: icon_list, service_list: service_list} = device, base_url) do

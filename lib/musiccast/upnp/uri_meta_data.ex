@@ -2,6 +2,7 @@ defmodule MusicCast.UPnP.URIMetaData do
   @moduledoc """
   Defines a struct representing meta informations for a playable *UPnP A/V transport* URI.
   """
+
   defstruct [:title, {:duration, 0}, :artist, :album, :album_cover_url, :mimetype]
 
   @type t :: %__MODULE__{
@@ -10,22 +11,28 @@ defmodule MusicCast.UPnP.URIMetaData do
     artist: String.t,
     album: String.t,
     album_cover_url: String.t,
-    mimetype: String.t
+    mimetype: String.t,
   }
 
   @type didl_item :: {String.t, t}
 
   @doc """
   Returns a DIDL-Lite XML represention of the given `items`.
-
-  This function excepts a list of `{url, %MusicCast.UPnP.URIMetaData{}}` tuples.
   """
-  @spec didl_lite([didl_item]) :: String.t
-  def didl_lite(items) do
+  @spec didl_encode([didl_item]) :: String.t
+  def didl_encode(items) do
     to_string([
       ~s(<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dc="http://purl.org/dc/elements/1.1/">),
         Enum.map(items, &didl_item/1),
       ~s(</DIDL-Lite>)])
+  end
+
+  @doc """
+  Returns a list of items for the given DIDL-Lite XML.
+  """
+  @spec didl_decode(String.t) :: [didl_item]
+  def didl_decode(_xml) do
+    nil
   end
 
   defp didl_item({url, meta}) do
@@ -61,6 +68,7 @@ defmodule MusicCast.UPnP.URIMetaData do
   defp didl_field({:album, album}), do: "<upnp:album>#{album}</upnp:album>"
   defp didl_field({:album_cover_url, url}), do: "<upnp:albumArtURI>#{url}</upnp:albumArtURI>"
   defp didl_field({:artist, artist}), do: "<upnp:artist>#{artist}</upnp:artist>"
+  defp didl_field(_), do: ""
 
   defp duration(duration) do
     hours = :io_lib.format("~2..0B", [div(duration, 3_600)])

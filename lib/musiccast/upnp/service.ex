@@ -87,11 +87,23 @@ defmodule MusicCast.UPnP.Service do
     end
   end
 
+  @spec parse_event(Module.t, String.t) :: Map.t
+  def parse_event(service, xml) do
+    var = Map.new(service.__meta__)
+    xml
+    |> HtmlEntities.decode()
+    |> xpath(~x"//e:property/LastChange/Event/InstanceID/*"l)
+    |> Enum.map(fn props -> {to_string(xmlElement(props, :name)), xpath(props, ~x"./@val"s)} end)
+    |> Enum.map(fn {key, val} -> {String.to_atom(Macro.underscore(key)), val} end)
+    |> Enum.map(fn {key, val} -> {key, cast_variable(val, Map.get(var, key))} end)
+    |> serialize_event(service)
+  end
+
   @doc """
   Subscribes to a UPnP service.
   """
   @spec subscribe(String.t, String.t, Integer.t) :: {:ok, subscription} | {:error, term}
-  def subscribe(event_url, callback_url_or_session_id, timeout \\ 1_800) do
+  def subscribe(event_url, callback_url_or_session_id, timeout \\ 300) do
     headers =
       if String.starts_with?(callback_url_or_session_id, "uuid:"),
         do: ["SID": callback_url_or_session_id],
@@ -100,6 +112,8 @@ defmodule MusicCast.UPnP.Service do
       {:ok, %HTTPoison.Response{status_code: 200, headers: headers}} ->
         %{"SID" => session_id, "TIMEOUT" => "Second-" <> timeout} = Map.new(headers)
         {:ok, {session_id, String.to_integer(timeout)}}
+      {:ok, %HTTPoison.Response{status_code: 412}} ->
+        {:error, :precondition_failed}
       {:error, %HTTPoison.Error{reason: reason}} ->
         {:error, reason}
     end
@@ -130,6 +144,16 @@ defmodule MusicCast.UPnP.Service do
     external_resource = quote do: @external_resource  unquote(path)
     urn = "urn:schemas-upnp-org:service:" <> type_spec
     service = deserialize_desc(File.stream!(path))
+    props = serialize_props(service.property_list)
+    items = Keyword.keys(props)
+    struct = quote do
+        defstruct unquote(items)
+        @type t :: %__MODULE__{}
+      end
+    defvar =
+      quote do
+        def __meta__, do: unquote(props)
+      end
     actions =
       for %{name: name, argument_list: args} <- service.action_list do
         fun = String.to_atom(Macro.underscore(name))
@@ -154,7 +178,7 @@ defmodule MusicCast.UPnP.Service do
           defoverridable [{unquote(fun), unquote(sig_size)}]
         end
       end
-    [external_resource|actions]
+    [struct, external_resource, actions, defvar]
   end
 
   #
@@ -176,6 +200,24 @@ defmodule MusicCast.UPnP.Service do
     |> serialize_xml()
   end
 
+  defp serialize_props(props) do
+    Enum.filter_map(props,
+      fn %{name: name} -> !String.starts_with?(name, "A_ARG") end,
+      fn %{name: name, type: type} -> {String.to_atom(Macro.underscore(name)), String.to_atom(type)} end)
+  end
+
+  defp serialize_event(props, MusicCast.UPnP.AVTransport = service) do
+    props =
+      props
+      |> update_in([:av_transport_uri_meta_data], &MusicCast.UPnP.URIMetaData.didl_decode/1)
+      |> update_in([:current_track_meta_data], &MusicCast.UPnP.URIMetaData.didl_decode/1)
+    struct(service, props)
+  end
+
+  defp serialize_event(props, service) do
+    struct(service, props)
+  end
+
   defp envelope(body) do
     {:"s:Envelope", ["s:encodingStyle": "http://schemas.xmlsoap.org/soap/encoding/", "xmlns:s": "http://schemas.xmlsoap.org/soap/envelope/"], List.wrap(body)}
   end
@@ -187,6 +229,11 @@ defmodule MusicCast.UPnP.Service do
   defp map_param({key, val}) do
     {:"#{key}", [[to_string(val)]]}
   end
+
+  defp cast_variable("OK", _type), do: :ok
+  defp cast_variable("NOT_IMPLEMENTED", _type), do: :not_implemented
+  defp cast_variable(val, type) when type in [:ui4, :i4], do: String.to_integer(val)
+  defp cast_variable(val, _type), do: val
 
   defp deserialize_desc(xml) do
     xpath(xml,
