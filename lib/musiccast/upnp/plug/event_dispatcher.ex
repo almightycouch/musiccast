@@ -2,11 +2,20 @@ defmodule MusicCast.UPnP.Plug.EventDispatcher do
   @moduledoc """
   A `Plug` for receiving and dispatching incoming UPnP events.
 
+  Coupled with the network registry, this module is used to forward incoming
+  unicast events to their respective `MusicCast.Network.Entity` processes.
+
   ## Example
 
       scope "/upnp", MusicCast.UPnP.Plug do
         forward "/event", EventDispatcher, service: MusicCast.UPnP.AVTransport
       end
+
+  In order to subscribe to UPnP events, `MusicCast.Network.Entity` requires
+  the `:upnp_callback_url` config entry to point to this plug's URL:
+
+      config :musiccast,
+        upnp_callback_url: "http://192.168.0.42:4000/upnp/event"
   """
 
   alias MusicCast.UPnP.Service

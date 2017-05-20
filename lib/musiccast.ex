@@ -1,6 +1,6 @@
 defmodule MusicCast do
   @moduledoc """
-  A Yamaha MusicCast™ implementation supporting SSDP discovery and Yamaha's YXC API.
+  A Yamaha MusicCast™ implementation supporting UPnP A/V and Yamaha's YXC API.
   """
 
   defdelegate discover, to: MusicCast.UPnP.SSDPClient

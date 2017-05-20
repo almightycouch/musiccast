@@ -2,6 +2,10 @@ defmodule MusicCast.UPnP.Service do
   @moduledoc """
   A module for working with UPnP compliant services.
 
+  * It can automatically generate UPnP compliant clients from XML specifications.
+  * It provides pub/sub cababilities to subscribe and forward UPnP event notifcations.
+
+
   ## Example
 
       defmodule AVTransport do
@@ -87,6 +91,9 @@ defmodule MusicCast.UPnP.Service do
     end
   end
 
+  @doc """
+  Returns a service struct from the given XML service notification event.
+  """
   @spec parse_event(Module.t, String.t) :: Map.t
   def parse_event(service, xml) do
     var = Map.new(service.__meta__)
