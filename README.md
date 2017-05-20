@@ -20,7 +20,7 @@ Add `:musiccast` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
-  [{:musiccast, "~> 0.1"}]
+  [{:musiccast, "~> 0.2"}]
 end
 ```
 
