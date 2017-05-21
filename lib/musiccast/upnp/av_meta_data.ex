@@ -1,6 +1,6 @@
-defmodule MusicCast.UPnP.URIMetaData do
+defmodule MusicCast.UPnP.AVMetaData do
   @moduledoc """
-  Defines a struct representing meta informations for a playable *UPnP A/V transport* URI.
+  Defines a struct representing meta informations for a playable *UPnP A/V transport* URL.
 
   See `MusicCast.UPnP.AVTransport` for more details.
   """

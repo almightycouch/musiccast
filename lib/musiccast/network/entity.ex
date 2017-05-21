@@ -16,7 +16,7 @@ defmodule MusicCast.Network.Entity do
   use GenServer
 
   alias MusicCast.ExtendedControl, as: YXC
-  alias MusicCast.UPnP.{AVTransport, Service, URIMetaData}
+  alias MusicCast.UPnP.{AVTransport, Service, AVMetaData}
 
   require Logger
 
@@ -265,7 +265,7 @@ defmodule MusicCast.Network.Entity do
 
   def handle_call({:upnp_load, url, meta}, _from, state) do
     service = av_transport_service(state.upnp_service.device)
-    didl_meta = if meta, do: struct(URIMetaData, meta)
+    didl_meta = if meta, do: struct(AVMetaData, meta)
     with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, didl_meta),
          :ok <- AVTransport.play(service.control_url, 0, 1) do
       {:reply, :ok, state}
@@ -276,7 +276,7 @@ defmodule MusicCast.Network.Entity do
 
   def handle_call({:upnp_load_next, url, meta}, _from, state) do
     service = av_transport_service(state.upnp_service.device)
-    didl_meta = if meta, do: struct(URIMetaData, meta)
+    didl_meta = if meta, do: struct(AVMetaData, meta)
     case AVTransport.set_next_av_transport_uri(service.control_url, 0, url, didl_meta) do
       :ok ->
         {:reply, :ok, state}
