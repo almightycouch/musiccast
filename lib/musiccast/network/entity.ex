@@ -76,11 +76,19 @@ defmodule MusicCast.Network.Entity do
   end
 
   @doc """
-  Begins playback of the given URL.
+  Loads the given URL and immediately begins playback.
   """
-  @spec playback_play_url(pid, String.t, Enum.t) :: :ok | {:error, term}
-  def playback_play_url(pid, url, meta \\ nil) do
-    GenServer.call(pid, {:upnp_play_url, url, meta})
+  @spec playback_load(pid, String.t, Enum.t) :: :ok | {:error, term}
+  def playback_load(pid, url, meta \\ nil) do
+    GenServer.call(pid, {:upnp_load, url, meta})
+  end
+
+  @doc """
+  Sets the next URL to load for gapless playback.
+  """
+  @spec playback_load_next(pid, String.t, Enum.t) :: :ok | {:error, term}
+  def playback_load_next(pid, url, meta \\ nil) do
+    GenServer.call(pid, {:upnp_load_next, url, meta})
   end
 
   @doc """
@@ -255,7 +263,7 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
-  def handle_call({:upnp_play_url, url, meta}, _from, state) do
+  def handle_call({:upnp_load, url, meta}, _from, state) do
     service = av_transport_service(state.upnp_service.device)
     didl_meta = if meta, do: struct(URIMetaData, meta)
     with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, didl_meta),
@@ -263,6 +271,17 @@ defmodule MusicCast.Network.Entity do
       {:reply, :ok, state}
     else
       error -> {:reply, error, state}
+    end
+  end
+
+  def handle_call({:upnp_load_next, url, meta}, _from, state) do
+    service = av_transport_service(state.upnp_service.device)
+    didl_meta = if meta, do: struct(URIMetaData, meta)
+    case AVTransport.set_next_av_transport_uri(service.control_url, 0, url, didl_meta) do
+      :ok ->
+        {:reply, :ok, state}
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
     end
   end
 
