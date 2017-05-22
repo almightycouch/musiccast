@@ -5,12 +5,15 @@ defmodule MusicCast.Network do
   The network is the heart of this MusicCast application. It is responsible for discovering
   devices on the local network (see `MusicCast.UPnP.SSDPClient`) and keeping their state synchronized.
 
+  ## Registry
+  The network act as a global registry for running `MusicCast.Network.Entity` processes. You can find a device on the registry
+  with `whereis/1`. To get a list of registered devices, see `which_devices/1`.
+
+  ## Pub/Sub
+
   You have the possibility to subscribe to network topoligy changes (for example, when a new device is discovered
   or when a device goes offline). Additionally, you can subscribe to a device's changefeed directly.
   See `subscribe/1` and `unsubscribe/1` for more details.
-
-  Also, the network act as a global registry for running `MusicCast.Network.Entity` processes. You can find a device on the registry
-  with `whereis/1`. To get a list of registered devices, see `which_devices/1`.
   """
 
   use Supervisor
@@ -39,9 +42,9 @@ defmodule MusicCast.Network do
   end
 
   @doc """
-  Returns the value(s) for the given lookup key(s) from the given device id.
+  Returns the device state value(s) for the given lookup key(s).
 
-  See `MusicCast.Network.Entity.__lookup__/2` for more details.
+  See `MusicCast.Network.Entity.__lookup__/2` for a list of allowed lookup keys.
   """
   @spec lookup(device_id, MusicCast.Network.Entity.lookup_query) :: any
   def lookup(device_id, keys \\ :all)
@@ -58,14 +61,14 @@ defmodule MusicCast.Network do
       iex> MusicCast.subscribe(:network)
       {:ok, #PID<0.80.0>}
       iex> flush()
-      {:musiccast, :online, %MusicCast.Network.Entity{}}
+      {:musiccast, :online, %MusicCast.Network.Entity{...}}
 
   Or subscribe to status notifications from a specific device:
 
       iex> MusicCast.subscribe("00A0DEDCF73E")
       {:ok, #PID<0.200.0>}
       iex> flush()
-      {:musiccast, :update, "00A0DEDCF73E", %{}}
+      {:musiccast, :update, "00A0DEDCF73E", %{...}}
   """
   @spec subscribe(:network | device_id) :: {:ok, pid}
   def subscribe(entity)
@@ -102,7 +105,7 @@ defmodule MusicCast.Network do
   Otherwise, you can specify a list of keys to lookup for:
 
       iex> MusicCast.which_devices([:network_name, :host])
-      [{#PID<0.200.0>, "Schlafzimmer", "192.168.0.63"}]
+      [{#PID<0.200.0>, ["Schlafzimmer", "192.168.0.63"]}]
 
   See `lookup/2` for more informations about available lookup options.
   """

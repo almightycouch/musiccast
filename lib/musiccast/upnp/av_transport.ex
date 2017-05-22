@@ -1,8 +1,6 @@
 defmodule MusicCast.UPnP.AVTransport do
   @moduledoc """
   Defines a “common” model for *UPnP A/V transport* control suitable for a UPnP generic user interface.
-
-  See `MusicCast.UPnP.Service` for more details.
   """
 
   use MusicCast.UPnP.Service, type: "AVTransport:1"

@@ -4,12 +4,20 @@ defmodule MusicCast.Network.Entity do
 
   A network entity is automatically started when a MusicCast enabled device is
   discovered. See the `MusicCast.UPnP.SSDPClient` for implementation details. Once started,
-  the entity process is available to the network registry via it MusicCast device ID.
-  See `MusicCast.whereis/1` and `MusicCast.which_devices/1` for more details about the network registry.
+  the entity process is available to the network registry via it MusicCast device ID:
+
+      iex> pid = MusicCast.whereis("00A0DEDCF73E")
+      #PID<0.200.0>
+      iex> MusicCast.Network.Entity.__lookup__(pid, :status)
+      %{...}
+
+
+  ## Synchronization
 
   Each entity process keeps it state synchronized with the device it is paired with.
-  This task is acomplished by the `MusicCast.Network.EventListener` process which forwards
+  This task is acomplished by the `MusicCast.Network.EventDispatcher` process which forwards
   incoming YXC unicast messages to the affected entity processes.
+
   See `MusicCast.subscribe/1` and `MusicCast.unsubscribe/1` for more details.
   """
 
@@ -77,6 +85,8 @@ defmodule MusicCast.Network.Entity do
 
   @doc """
   Loads the given URL and immediately begins playback.
+
+  If given, `meta` must conform to `MusicCast.UPnP.AVMetaData`.
   """
   @spec playback_load(pid, String.t, Enum.t) :: :ok | {:error, term}
   def playback_load(pid, url, meta \\ nil) do
@@ -85,6 +95,8 @@ defmodule MusicCast.Network.Entity do
 
   @doc """
   Sets the next URL to load for gapless playback.
+
+  If given, `meta` must conform to `MusicCast.UPnP.AVMetaData`.
   """
   @spec playback_load_next(pid, String.t, Enum.t) :: :ok | {:error, term}
   def playback_load_next(pid, url, meta \\ nil) do
@@ -198,7 +210,17 @@ defmodule MusicCast.Network.Entity do
   end
 
   @doc """
-  Returns the value(s) for the given lookup key(s).
+  Returns the state value(s) for the given lookup key(s).
+
+  If you pass `:all`, this function will return the full state of the entity.
+
+      iex> MusicCast.Network.Entity.__lookup__(pid, :all)
+      %MusicCast.Network.Entity{...}
+
+  If you prefer to query a subset of the entity's state, you can pass any number of `t:lookup_key/0`:
+
+      iex> MusicCast.Network.Entity.__lookup__(pid, [:host, :network_name])
+      ["192.168.0.63", "Schlafzimmer"]
   """
   @spec __lookup__(pid, lookup_query) :: any
   def __lookup__(pid, keys \\ :all) do

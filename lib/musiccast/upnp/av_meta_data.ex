@@ -1,8 +1,6 @@
 defmodule MusicCast.UPnP.AVMetaData do
   @moduledoc """
   Defines a struct representing meta informations for a playable *UPnP A/V transport* URL.
-
-  See `MusicCast.UPnP.AVTransport` for more details.
   """
 
   defstruct [:title, {:duration, 0}, :artist, :album, :album_cover_url, :mimetype]

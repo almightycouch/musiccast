@@ -26,28 +26,31 @@ end
 
 ## Usage
 
-Start by discovering MusicCast devices on your network:
+MusicCast devices are automatically discovered and added to `MusicCast.Network`, you can list all registered devices as follow:
 
 ```elixir
-:ok = MusicCast.discover
-```
-
-Devices are automatically added to `MusicCast.Network`, you can list all registered devices as follow:
-
-```elixir
-[{pid, device_id}] = MusicCast.which_devices
+iex> [{pid, device_id}] = MusicCast.which_devices()
+[{#PID<0.200.0>, "00A0DEDCF73E"}]
 ```
 
 You can control a device using the `MusicCast.Network.Entity` module:
 
 ```elixir
-:ok = MusicCast.Network.Entity.set_input pid, "spotify"
-:ok = MusicCast.Network.Entity.playback_pause pid
-:ok = MusicCast.Network.Entity.set_volume pid, 50
+iex> MusicCast.Network.Entity.set_input(pid, "spotify")
+:ok
+iex> MusicCast.Network.Entity.playback_play(pid)
+:ok
+iex> MusicCast.Network.Entity.set_volume(pid, 50)
+:ok
 ```
 
 You also have the possibility to subscribe to status update notifications from a specific device:
 
 ```elixir
-:ok = MusicCast.subscribe device_id
+iex> MusicCast.subscribe(device_id)
+:ok
+iex> flush()
+{:musiccast, :update, "00A0DEDCF73E", %{playback: %{input: "spotify", playback: "pause"}}
+{:musiccast, :update, "00A0DEDCF73E", %{playback: %{playback: "play"}}
+{:musiccast, :update, "00A0DEDCF73E", %{status: %{volume: 50}}
 ```

@@ -7,10 +7,12 @@ defmodule MusicCast.ExtendedControl do
   [API Specification Rev. 1.00](https://www.google.com/search?as_epq=YXC_API_Spec_Basic.pdf&as_filetype=pdf)
   published by Yamaha in 2016.
 
+  ## Example
+
       iex> alias MusicCast.ExtendedControl, as: YXC
       MusicCast.ExtendedControl
       iex> YXC.get_device_info("192.168.0.63")
-      %{}
+      %{...}
       iex> YXC.set_input("192.168.0.63", "spotify")
       :ok
       iex> YXC.set_playback("192.168.0.63", "play")

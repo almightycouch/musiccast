@@ -2,12 +2,11 @@ defmodule MusicCast.UPnP.SSDPClient do
   @moduledoc """
   A basic SSDP client module for UPnP discovery on the local network.
 
-  In order to `discover/0` MusicCast enabled devices on the network,
+  In order to discover MusicCast enabled devices on the network,
   the SSDP client broadcasts a search request on the mulicast address `239.255.255.250`, port `1900`.
 
-  Once the search request as succeeded, MusicCast devices will announce themselves through the network
-  which allows the SSDP client to automatically start `MusicCast.Network.Entity` processes on the `MusicCast.Network`.
-  As default, `urn:schemas-upnp-org:device:MediaRenderer:1` is used as SSDP search target.
+  Once the search request succeeds, MusicCast devices will announce themselves through the network
+  and automatically start `MusicCast.Network.Entity` processes on the `MusicCast.Network`.
   """
 
   use GenServer

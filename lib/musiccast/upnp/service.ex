@@ -59,7 +59,7 @@ defmodule MusicCast.UPnP.Service do
   @doc """
   Returns a map representing the UPnP service.
   """
-  @spec describe(String.t) :: {:ok, term} | {:error, term}
+  @spec describe(String.t) :: {:ok, Map.t} | {:error, term}
   def describe(service_url) do
     case HTTPoison.get(service_url) do
       {:ok, %HTTPoison.Response{body: body}} ->
@@ -92,12 +92,12 @@ defmodule MusicCast.UPnP.Service do
   end
 
   @doc """
-  Returns a service struct from the given XML service notification event.
+  Returns a service event struct from the given XML payload.
   """
-  @spec parse_event(Module.t, String.t) :: Map.t
-  def parse_event(service, xml) do
+  @spec cast_event(Module.t, String.t) :: Map.t
+  def cast_event(service, payload) do
     var = Map.new(service.__meta__)
-    xml
+    payload
     |> HtmlEntities.decode()
     |> xpath(~x"//e:property/LastChange/Event/InstanceID/*"l)
     |> Enum.map(fn props -> {to_string(xmlElement(props, :name)), xpath(props, ~x"./@val"s)} end)

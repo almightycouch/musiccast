@@ -1,9 +1,6 @@
-defmodule MusicCast.Network.EventListener do
+defmodule MusicCast.Network.EventDispatcher do
   @moduledoc """
   A UDP server for receiving and dispatching Yamaha Extended Control (YXC) unicast events.
-
-  Coupled with the network registry, this module is used to forward incoming
-  unicast events to their respective `MusicCast.Network.Entity` processes.
   """
 
   use GenServer
