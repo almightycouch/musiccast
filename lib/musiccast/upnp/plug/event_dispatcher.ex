@@ -18,7 +18,6 @@ defmodule MusicCast.UPnP.Plug.EventDispatcher do
 
   import Plug.Conn
 
-
   @behaviour Plug
 
   @spec init(Plug.opts) :: Plug.opts
@@ -29,9 +28,9 @@ defmodule MusicCast.UPnP.Plug.EventDispatcher do
     service = Keyword.fetch!(opts, :service)
     [session_id] = get_req_header(conn, "sid")
     {:ok, body, conn} = read_body(conn)
-    event = Service.cast_event(service, body)
-    dispatch_event(session_id, event)
-    send_resp(conn, 200, "")
+    if dispatch_event(session_id, Service.cast_event(service, body)),
+      do: send_resp(conn, 200, ""),
+    else: send_resp(conn, 410, "")
   end
 
   #
