@@ -3,14 +3,16 @@ defmodule MusicCast.UPnP.AVMetaData do
   Defines a struct representing meta informations for a playable *UPnP A/V transport* URL.
   """
 
+  import SweetXml
+
   defstruct [:title, {:duration, 0}, :artist, :album, :album_cover_url, :mimetype]
 
   @type t :: %__MODULE__{
     title: String.t,
-    duration: Integer.t,
     artist: String.t,
     album: String.t,
     album_cover_url: String.t,
+    duration: Integer.t,
     mimetype: String.t,
   }
 
@@ -23,7 +25,7 @@ defmodule MusicCast.UPnP.AVMetaData do
   def didl_encode(items) do
     to_string([
       ~s(<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dc="http://purl.org/dc/elements/1.1/">),
-        Enum.map(items, &didl_item/1),
+        Enum.map(items, &encode_item/1),
       ~s(</DIDL-Lite>)])
   end
 
@@ -31,16 +33,13 @@ defmodule MusicCast.UPnP.AVMetaData do
   Returns a list of items for the given DIDL-Lite XML.
   """
   @spec didl_decode(String.t) :: [didl_item]
-  def didl_decode(_xml) do
-    nil
-  end
-
-  defp didl_item({url, meta}) do
-    [~s(<item id="f-0" parentID="0" restricted="0">),
-      ~s(<upnp:class>object.item.audioItem.musicTrack</upnp:class>),
-      didl_fields(meta),
-      ~s(<res protocolInfo="#{dlna_protocol_info(meta.mimetype)}" duration="#{duration(meta.duration)}">#{url}</res>),
-    ~s(</item>)]
+  def didl_decode(xml) when xml in [nil, ""], do: []
+  def didl_decode(xml) do
+    xml
+    |> String.replace(~r/&/, "&amp;")
+    |> decode_item()
+    |> didl_item()
+    |> List.wrap()
   end
 
   @doc """
@@ -56,6 +55,13 @@ defmodule MusicCast.UPnP.AVMetaData do
   # Helpers
   #
 
+  defp didl_item(item) do
+    item = Map.update!(item, :duration, &decode_duration/1)
+    {proto, item} = Map.pop(item, :protocol)
+    item = Map.put(item, :mimetype, extract_mimetype(proto))
+    struct(__MODULE__, item)
+  end
+
   defp didl_fields(meta) do
     meta
     |> Map.from_struct()
@@ -67,14 +73,47 @@ defmodule MusicCast.UPnP.AVMetaData do
   defp didl_field({:title, title}), do: "<dc:title>#{title}</dc:title>"
   defp didl_field({:album, album}), do: "<upnp:album>#{album}</upnp:album>"
   defp didl_field({:album_cover_url, url}), do: "<upnp:albumArtURI>#{url}</upnp:albumArtURI>"
-  defp didl_field({:artist, artist}), do: "<upnp:artist>#{artist}</upnp:artist>"
+  defp didl_field({:artist, artist}), do: "<upnp:artist>#{HtmlEntities.encode(artist)}</upnp:artist>"
   defp didl_field(_), do: ""
 
-  defp duration(duration) do
+  defp encode_item({url, meta}) do
+    [~s(<item id="f-0" parentID="0" restricted="0">),
+      ~s(<upnp:class>object.item.audioItem.musicTrack</upnp:class>),
+      didl_fields(meta),
+      ~s(<res protocolInfo="#{dlna_protocol_info(meta.mimetype)}" duration="#{encode_duration(meta.duration)}">#{url}</res>),
+    ~s(</item>)]
+  end
+
+  defp decode_item(xml) do
+    xpath(xml, ~x"//item",
+      title: ~x"./dc:title/text()"s,
+      artist: ~x"./upnp:artist/text()"s,
+      album: ~x"./upnp:album/text()"s,
+      album_cover_url: ~x"./upnp:albumArtURI/text()"s,
+      duration: ~x"./res/@duration"s,
+      protocol: ~x"./res/@protocolInfo"s
+    )
+  end
+
+  defp encode_duration(duration) do
     hours = :io_lib.format("~2..0B", [div(duration, 3_600)])
     minutes = :io_lib.format("~2..0B", [div(duration, 60)])
     seconds = :io_lib.format("~2..0B", [Integer.mod(duration, 60)])
     "#{hours}:#{minutes}:#{seconds}"
+  end
+
+  defp decode_duration(str) do
+    [h, m, s] =
+      str
+      |> String.split(":")
+      |> Enum.map(&String.to_integer/1)
+    (h * 3_600) + (m * 60) + s
+  end
+
+  defp extract_mimetype(info) do
+    info
+    |> String.split(":")
+    |> Enum.at(2)
   end
 end
 

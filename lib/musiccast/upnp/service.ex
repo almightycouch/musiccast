@@ -216,15 +216,23 @@ defmodule MusicCast.UPnP.Service do
   defp serialize_event(props, MusicCast.UPnP.AVTransport = service) do
     props =
       props
-      |> update_in([:current_track_meta_data], &MusicCast.UPnP.AVMetaData.didl_decode/1)
-      |> update_in([:next_track_meta_data], &MusicCast.UPnP.AVMetaData.didl_decode/1)
-      |> update_in([:av_transport_uri_meta_data], &MusicCast.UPnP.AVMetaData.didl_decode/1)
-      |> update_in([:next_av_transport_uri_meta_data], &MusicCast.UPnP.AVMetaData.didl_decode/1)
+      |> decode_didl(:current_track_meta_data)
+      |> decode_didl(:next_track_meta_data)
+      |> decode_didl(:av_transport_uri_meta_data)
+      |> decode_didl(:next_av_transport_uri_meta_data)
     struct(service, props)
   end
 
   defp serialize_event(props, service) do
     struct(service, props)
+  end
+
+  defp decode_didl(props, key) do
+    update_in(props, [key], fn item ->
+      item
+      |> MusicCast.UPnP.AVMetaData.didl_decode()
+      |> List.first()
+    end)
   end
 
   defp envelope(body) do
