@@ -8,7 +8,7 @@ defmodule MusicCast.UPnP.Plug.EventDispatcher do
         forward "/event", EventDispatcher, service: MusicCast.UPnP.AVTransport
       end
 
-  In order to subscribe to UPnP events, set the `:upnp_callback_url` config to this plug's URL:
+  In order to subscribe to UPnP events, the `:upnp_callback_url` config must be configured correctly:
 
       config :musiccast,
         upnp_callback_url: "http://192.168.0.42:4000/upnp/event"
