@@ -5,17 +5,18 @@ defmodule MusicCast.UPnP.AVTransport do
 
   use MusicCast.UPnP.Service, type: "AVTransport:1"
 
-  alias MusicCast.UPnP.AVMetaData
+  alias MusicCast.UPnP.AVMusicTrack
 
   def set_av_transport_uri(control_url, instance_id, current_uri, nil), do: super(control_url, instance_id, current_uri, "")
+  def set_av_transport_uri(control_url, instance_id, current_uri, items) when is_list(items), do: super(control_url, instance_id, current_uri, AVMusicTrack.didl_encode(items))
   def set_av_transport_uri(control_url, instance_id, current_uri, meta) when is_binary(meta), do: super(control_url, instance_id, current_uri, meta)
-  def set_av_transport_uri(control_url, instance_id, current_uri, %AVMetaData{} = current_uri_meta_data) do
-    super(control_url, instance_id, current_uri, AVMetaData.didl_encode([{current_uri, current_uri_meta_data}]))
+  def set_av_transport_uri(control_url, instance_id, current_uri, %AVMusicTrack{} = current_uri_meta_data) do
+    super(control_url, instance_id, current_uri, AVMusicTrack.didl_encode([{current_uri, current_uri_meta_data}]))
   end
 
   def set_next_av_transport_uri(control_url, instance_id, next_uri, nil), do: super(control_url, instance_id, next_uri, "")
   def set_next_av_transport_uri(control_url, instance_id, next_uri, meta) when is_binary(meta), do: super(control_url, instance_id, next_uri, meta)
-  def set_next_av_transport_uri(control_url, instance_id, next_uri, %AVMetaData{} = next_uri_meta_data) do
-    super(control_url, instance_id, next_uri, AVMetaData.didl_encode([{next_uri, next_uri_meta_data}]))
+  def set_next_av_transport_uri(control_url, instance_id, next_uri, %AVMusicTrack{} = next_uri_meta_data) do
+    super(control_url, instance_id, next_uri, AVMusicTrack.didl_encode([{next_uri, next_uri_meta_data}]))
   end
 end

@@ -229,9 +229,10 @@ defmodule MusicCast.UPnP.Service do
 
   defp decode_didl(props, key) do
     update_in(props, [key], fn item ->
-      item
-      |> MusicCast.UPnP.AVMetaData.didl_decode()
-      |> List.first()
+      case MusicCast.UPnP.AVMusicTrack.didl_decode(item) do
+        [item] -> item
+         items -> items
+      end
     end)
   end
 

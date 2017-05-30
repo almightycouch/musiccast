@@ -11,7 +11,6 @@ defmodule MusicCast.Network.Entity do
       iex> MusicCast.Network.Entity.__lookup__(pid, :status)
       %{...}
 
-
   ## Synchronization
 
   Each entity process keeps it state synchronized with the device it is paired with.
@@ -24,7 +23,7 @@ defmodule MusicCast.Network.Entity do
   use GenServer
 
   alias MusicCast.ExtendedControl, as: YXC
-  alias MusicCast.UPnP.{AVTransport, Service, AVMetaData}
+  alias MusicCast.UPnP.{AVTransport, Service, AVMusicTrack}
 
   require Logger
 
@@ -86,21 +85,23 @@ defmodule MusicCast.Network.Entity do
   @doc """
   Loads the given URL and immediately begins playback.
 
-  If given, `meta` must conform to `MusicCast.UPnP.AVMetaData`.
+  If given, `meta` must conform to `MusicCast.UPnP.AVMusicTrack`.
   """
   @spec playback_load(pid, String.t, Enum.t) :: :ok | {:error, term}
   def playback_load(pid, url, meta \\ nil) do
-    GenServer.call(pid, {:upnp_load, url, meta})
+    didl_meta = if meta, do: struct(AVMusicTrack, meta)
+    GenServer.call(pid, {:upnp_load, url, didl_meta})
   end
 
   @doc """
   Sets the next URL to load for gapless playback.
 
-  If given, `meta` must conform to `MusicCast.UPnP.AVMetaData`.
+  If given, `meta` must conform to `MusicCast.UPnP.AVMusicTrack`.
   """
   @spec playback_load_next(pid, String.t, Enum.t) :: :ok | {:error, term}
   def playback_load_next(pid, url, meta \\ nil) do
-    GenServer.call(pid, {:upnp_load_next, url, meta})
+    didl_meta = if meta, do: struct(AVMusicTrack, meta)
+    GenServer.call(pid, {:upnp_load_next, url, didl_meta})
   end
 
   @doc """
@@ -287,8 +288,7 @@ defmodule MusicCast.Network.Entity do
 
   def handle_call({:upnp_load, url, meta}, _from, state) do
     service = av_transport_service(state.upnp_service.device)
-    didl_meta = if meta, do: struct(AVMetaData, meta)
-    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, didl_meta),
+    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, meta),
          :ok <- AVTransport.play(service.control_url, 0, 1) do
       {:reply, :ok, state}
     else
@@ -298,12 +298,22 @@ defmodule MusicCast.Network.Entity do
 
   def handle_call({:upnp_load_next, url, meta}, _from, state) do
     service = av_transport_service(state.upnp_service.device)
-    didl_meta = if meta, do: struct(AVMetaData, meta)
-    case AVTransport.set_next_av_transport_uri(service.control_url, 0, url, didl_meta) do
+    case AVTransport.set_next_av_transport_uri(service.control_url, 0, url, meta) do
       :ok ->
         {:reply, :ok, state}
       {:error, reason} ->
         {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:upnp_load_container, items}, _from, state) do
+    url = "http://192.168.0.37:4444/foo"
+    service = av_transport_service(state.upnp_service.device)
+    with :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, items),
+         :ok <- AVTransport.play(service.control_url, 0, 1) do
+      {:reply, :ok, state}
+    else
+      error -> {:reply, error, state}
     end
   end
 
@@ -437,8 +447,8 @@ defmodule MusicCast.Network.Entity do
     Enum.reduce(new, Map.new(), &diff_value(&1, old, &2) || &2)
   end
 
-  defp diff_state(nil, new), do: new
   defp diff_state(_old, nil), do: nil
+  defp diff_state(_old, new), do: new
 
   defp diff_value({k, v}, old, acc) when is_map(old) do
     unless v == old[k] do

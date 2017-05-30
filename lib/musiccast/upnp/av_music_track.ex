@@ -1,13 +1,14 @@
-defmodule MusicCast.UPnP.AVMetaData do
+defmodule MusicCast.UPnP.AVMusicTrack do
   @moduledoc """
   Defines a struct representing meta informations for a playable *UPnP A/V transport* URL.
   """
 
   import SweetXml
 
-  defstruct [:title, {:duration, 0}, :artist, :album, :album_cover_url, :mimetype]
+  defstruct [{:id, 0}, :title, :artist, :album, :album_cover_url, {:duration, 0}, :mimetype]
 
   @type t :: %__MODULE__{
+    id: Integer.t,
     title: String.t,
     artist: String.t,
     album: String.t,
@@ -38,8 +39,7 @@ defmodule MusicCast.UPnP.AVMetaData do
     xml
     |> String.replace(~r/&/, "&amp;")
     |> decode_item()
-    |> didl_item()
-    |> List.wrap()
+    |> Enum.map(&didl_item/1)
   end
 
   @doc """
@@ -47,7 +47,7 @@ defmodule MusicCast.UPnP.AVMetaData do
   """
   @spec dlna_protocol_info(String.t) :: String.t
   def dlna_protocol_info(mimetype)
-  def dlna_protocol_info("audio/mp4"), do: "http-get:*:audio/mp4:DLNA.ORG_PN=AAC_ISO_320;DLNA.ORG_FLAGS=9D300000000000000000000000000000"
+  def dlna_protocol_info("audio/mp4"), do: "http-get:*:audio/mp4:DLNA.ORG_PN=AAC_ISO_320"
   def dlna_protocol_info(mimetype) when is_binary(mimetype), do: "http-get:*:#{mimetype}"
   def dlna_protocol_info(nil), do: ""
 
@@ -58,14 +58,13 @@ defmodule MusicCast.UPnP.AVMetaData do
   defp didl_item(item) do
     item = Map.update!(item, :duration, &decode_duration/1)
     {proto, item} = Map.pop(item, :protocol)
-    item = Map.put(item, :mimetype, extract_mimetype(proto))
-    struct(__MODULE__, item)
+    struct(__MODULE__, Map.put(item, :mimetype, extract_mimetype(proto)))
   end
 
   defp didl_fields(meta) do
     meta
     |> Map.from_struct()
-    |> Map.drop([:duration, :mimetype])
+    |> Map.drop([:id, :duration, :mimetype])
     |> Enum.reject(fn {_, v} -> is_nil(v) end)
     |> Enum.map(&didl_field/1)
   end
@@ -77,7 +76,7 @@ defmodule MusicCast.UPnP.AVMetaData do
   defp didl_field(_), do: ""
 
   defp encode_item({url, meta}) do
-    [~s(<item id="f-0" parentID="0" restricted="0">),
+    [~s(<item id="#{meta.id}" parentID="0" restricted="0">),
       ~s(<upnp:class>object.item.audioItem.musicTrack</upnp:class>),
       didl_fields(meta),
       ~s(<res protocolInfo="#{dlna_protocol_info(meta.mimetype)}" duration="#{encode_duration(meta.duration)}">#{url}</res>),
@@ -85,18 +84,19 @@ defmodule MusicCast.UPnP.AVMetaData do
   end
 
   defp decode_item(xml) do
-    xpath(xml, ~x"//item",
+    xpath(xml, ~x"//item"l,
+     [id: ~x"./@id"i,
       title: ~x"./dc:title/text()"s,
       artist: ~x"./upnp:artist/text()"s,
       album: ~x"./upnp:album/text()"s,
       album_cover_url: ~x"./upnp:albumArtURI/text()"s,
       duration: ~x"./res/@duration"s,
-      protocol: ~x"./res/@protocolInfo"s
+      protocol: ~x"./res/@protocolInfo"s]
     )
   end
 
   defp encode_duration(duration) do
-    hours = :io_lib.format("~2..0B", [div(duration, 3_600)])
+    hours = :io_lib.format("~1..0B", [div(duration, 3_600)])
     minutes = :io_lib.format("~2..0B", [div(duration, 60)])
     seconds = :io_lib.format("~2..0B", [Integer.mod(duration, 60)])
     "#{hours}:#{minutes}:#{seconds}"
