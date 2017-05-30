@@ -402,24 +402,52 @@ defmodule MusicCast.Network.Entity do
   end
 
   defp update_state(state, %{status_updated: true} = event) do
-    update_state(state, Map.drop(event, [:status_updated]))
+    state
+    |> update_state(Map.drop(event, [:status_updated]))
+    |> update_status_state()
+  end
+
+  defp update_state(state, %{play_info_updated: true} = event) do
+    state
+    |> update_state(Map.drop(event, [:play_info_updated]))
+    |> update_playback_state()
+  end
+
+  defp update_state(state, %{play_queue: queue} = event) do
+    IO.inspect queue
+    state
+    |> update_state(Map.drop(event, [:play_queue]))
+  # |> update_playback_queue_state(queue)
+  end
+
+  defp update_state(state, %{play_queue_type: type} = event) do
+    IO.inspect type
+    state
+    |> update_state(Map.drop(event, [:play_queue_type]))
+  # |> update_playback_queue_state(type)
   end
 
   defp update_state(state, %{signal_info_updated: true} = event) do
-    update_state(state, Map.drop(event, [:signal_info_updated]))
+    state
+    |> update_state(Map.drop(event, [:signal_info_updated]))
+  # |> update_signal_state()
   end
 
-  defp update_state(state, %{play_info_updated: true}) do
-    update_playback_state(state)
+  defp update_state(state, %{recent_info_updated: true} = event) do
+    state
+    |> update_state(Map.drop(event, [:recent_info_updated]))
+  # |> update_recent_state()
   end
 
   defp update_state(state, event) when is_map(event) do
-    state_map =
-      state
-      |> Map.from_struct()
-      |> update_in([:status], &apply_update(&1, event))
-      |> update_in([:playback], &apply_update(&1, event))
-    struct(__MODULE__, state_map)
+    if map_size(event) > 0 do
+      state_map =
+        state
+        |> Map.from_struct()
+        |> update_in([:status], &apply_update(&1, event))
+        |> update_in([:playback], &apply_update(&1, event))
+      struct(__MODULE__, state_map)
+    end || state
   end
 
   defp update_state(state, nil), do: state
@@ -432,6 +460,13 @@ defmodule MusicCast.Network.Entity do
         else: update_in(state, [k], &apply_update(&1, v))
       end || state
     end)
+  end
+
+  defp update_status_state(state) do
+    case YXC.get_status(state.host) do
+      {:ok, status} -> struct(state, status: serialize_status(status))
+      {:error, _reason} -> state
+    end
   end
 
   defp update_playback_state(state) do
