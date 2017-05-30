@@ -75,6 +75,14 @@ defmodule MusicCast.ExtendedControl do
   end
 
   @doc """
+  Returns signal information.
+  """
+  def get_signal_info(host, options \\ []) do
+    {zone, options} = Keyword.pop(options, :zone, "main")
+    request_api(host, "/#{zone}/getSignalInfo", options)
+  end
+
+  @doc """
   Returns a list of sound program available for the given zone.
   """
   def get_sound_program_list(host, options \\ []) do
@@ -213,14 +221,40 @@ defmodule MusicCast.ExtendedControl do
   #
 
   @doc """
+  Returns playback information.
+  """
+  def get_playback_info(host, options \\ []), do: request_api(host, "/netusb/getPlayInfo", options)
+
+  @doc """
+  Returns list information.
+  """
+  def get_list_info(host, input, options \\ []) do
+    {index, options} = Keyword.pop(options, :index, 0)
+    request_api(host, "/netusb/getListInfo", Keyword.put(options, :params, %{input: input, index: index, size: 8}))
+  end
+
+  @doc """
+  Returns playback queue.
+  """
+  def get_playback_queue(host, options \\ []) do
+    {index, options} = Keyword.pop(options, :index, 0)
+    request_api(host, "/netusb/getPlayQueue", Keyword.put(options, :params, %{index: index}))
+  end
+
+  @doc """
   Returns network/usb preset information.
   """
   def get_preset_info(host, options \\ []), do: request_api(host, "/netusb/getPresetInfo", options)
 
   @doc """
-  Returns playback information.
+  Returns account information registered on a device.
   """
-  def get_playback_info(host, options \\ []), do: request_api(host, "/netusb/getPlayInfo", options)
+  def get_service_info(host, input, type, options \\ []), do: request_api(host, "/netusb/getServiceInfo", Keyword.put(options, :params, %{input: input, type: type}))
+
+  @doc """
+  Returns account information registered on a device.
+  """
+  def get_account_status(host, options \\ []), do: request_api(host, "/netusb/getAccountStatus", options)
 
   @doc """
   Sets playback status.
@@ -238,23 +272,21 @@ defmodule MusicCast.ExtendedControl do
   def toggle_shuffle(host, options \\ []), do: request_api(host, "/netusb/toggleShuffle", options)
 
   @doc """
-  Returns list information.
-
-  Basically this info is available to all relevant inputs, not limited
-  to or independent from current input.
-  """
-  def get_list_info(host, input, options \\ []) do
-    {index, options} = Keyword.pop(options, :index, 0)
-    {limit, options} = Keyword.pop(options, :limit, 8)
-    request_api(host, "/netusb/getListInfo", Keyword.put(options, :params, %{input: input, index: index, size: limit}))
-  end
-
-  @doc """
   Executes a list control command.
   """
   def set_list_control(host, type, options \\ []) do
     {index, options} = Keyword.pop(options, :index, 0)
-    request_api(host, "/netusb/setListControl", Keyword.put(options, :params, %{type: type, index: index}))
+    {zone, options} = Keyword.pop(options, :zone, "main")
+    request_api(host, "/netusb/setListControl", Keyword.put(options, :params, %{type: type, index: index, zone: zone}))
+  end
+
+  @doc """
+  Executes a list manage command.
+  """
+  def manage_list(host, type, options \\ []) do
+    {index, options} = Keyword.pop(options, :index, 0)
+    {zone, options} = Keyword.pop(options, :zone, "main")
+    request_api(host, "/netusb/manageList", Keyword.put(options, :params, %{type: type, index: index, zone: zone}))
   end
 
   @doc """
@@ -281,17 +313,7 @@ defmodule MusicCast.ExtendedControl do
   @doc """
   Returns account information registered on a device.
   """
-  def get_account_status(host, options \\ []), do: request_api(host, "/netusb/getAccountStatus", options)
-
-  @doc """
-  Returns account information registered on a device.
-  """
   def switch_account(host, input, index, options \\ []), do: request_api(host, "/netusb/switchAccount", Keyword.put(options, :params, %{input: input, index: index}))
-
-  @doc """
-  Returns account information registered on a device.
-  """
-  def get_service_info(host, input, type, options \\ []), do: request_api(host, "/netusb/getServiceInfo", Keyword.put(options, :params, %{input: input, type: type}))
 
   #
   # CD
