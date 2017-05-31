@@ -103,11 +103,13 @@ defmodule MusicCast.UPnP.AVMusicTrack do
   end
 
   defp decode_duration(str) do
-    [h, m, s] =
-      str
-      |> String.split(":")
-      |> Enum.map(&String.to_integer/1)
-    (h * 3_600) + (m * 60) + s
+    unless String.length(str) == 0 do
+      [h, m, s] =
+        str
+        |> String.split(":")
+        |> Enum.map(&String.to_integer/1)
+      (h * 3_600) + (m * 60) + s
+    end || 0
   end
 
   defp extract_mimetype(info) do
