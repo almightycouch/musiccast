@@ -35,8 +35,7 @@ defmodule MusicCast.Network.Entity do
             network_name: nil,
             available_inputs: [],
             status: nil,
-            playback: nil,
-            queue: nil
+            playback: nil
 
   @type ip_address :: {0..255, 0..255, 0..255, 0..255}
 
@@ -49,8 +48,7 @@ defmodule MusicCast.Network.Entity do
     :network_name |
     :available_inputs |
     :status |
-    :playback |
-    :queue
+    :playback
 
   @type lookup_query :: :all | [lookup_key] | lookup_key
 
@@ -63,8 +61,7 @@ defmodule MusicCast.Network.Entity do
     network_name: String.t,
     available_inputs: [String.t],
     status: Map.t,
-    playback: Map.t,
-    queue: Map.t
+    playback: Map.t
   }
 
   @doc """
@@ -253,7 +250,6 @@ defmodule MusicCast.Network.Entity do
          {:ok, upnp_desc} <- serialize_upnp_desc(upnp_desc),
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
-         {:ok, queue} <- fetch_queue(host),
          {:ok, session_id} <- upnp_subscribe(upnp_desc),
          {:ok, _} <- register_device(device_id, addr) do
       announce_device(%__MODULE__{
@@ -264,8 +260,7 @@ defmodule MusicCast.Network.Entity do
         network_name: network_name,
         available_inputs: Enum.map(system["input_list"], & &1["id"]),
         status: serialize_status(status),
-        playback: serialize_playback(playback, host),
-        queue: serialize_queue(queue)})
+        playback: serialize_playback(playback, host)})
     else
       {:error, reason} -> {:stop, reason}
     end
@@ -400,16 +395,6 @@ defmodule MusicCast.Network.Entity do
     end || {:ok, nil}
   end
 
-  defp fetch_queue(host, index \\ 0) do
-    case YXC.get_playback_queue(host, index: index) do
-      {:ok, %{index: ^index, max_line: size} = queue} when size > index + 8 ->
-        {:ok, Map.update!(queue, "track_info", &(&1 ++ fetch_queue(host, index + 8)))}
-      {:ok, queue} -> {:ok, queue}
-      {:error, reason} -> {:error, reason}
-
-    end
-  end
-
   defp update_state(%__MODULE__{} = state, %__MODULE__{} = new_state) do
     event_map = diff_state(Map.from_struct(state), Map.from_struct(new_state))
     unless map_size(event_map) == 0, do: broadcast_state_update(state.device_id, event_map)
@@ -428,22 +413,16 @@ defmodule MusicCast.Network.Entity do
     |> update_playback_state()
   end
 
-  defp update_state(state, %{play_queue: queue} = event) do
-    state
-    |> update_state(Map.drop(event, [:play_queue]))
-    |> update_queue_state(queue)
+  defp update_state(state, %{play_queue: _queue} = event) do
+    update_state(state, Map.drop(event, [:play_queue]))
   end
 
   defp update_state(state, %{signal_info_updated: true} = event) do
-    state
-    |> update_state(Map.drop(event, [:signal_info_updated]))
-  # |> update_signal_state()
+    update_state(state, Map.drop(event, [:signal_info_updated]))
   end
 
   defp update_state(state, %{recent_info_updated: true} = event) do
-    state
-    |> update_state(Map.drop(event, [:recent_info_updated]))
-  # |> update_recent_state()
+    update_state(state, Map.drop(event, [:recent_info_updated]))
   end
 
   defp update_state(state, event) when is_map(event) do
@@ -481,24 +460,6 @@ defmodule MusicCast.Network.Entity do
       {:ok, playback} -> struct(state, playback: serialize_playback(playback, state.host))
       {:error, _reason} -> state
     end
-  end
-
-  defp update_queue_state(state, %{updated: true}) do
-    case fetch_queue(state.host) do
-      {:ok, queue} -> struct(state, queue: serialize_queue(queue))
-      {:error, _reason} -> state
-    end
-  end
-
-  defp update_queue_state(state, %{control: %{"success" => true}}) do
-    case fetch_queue(state.host) do
-      {:ok, queue} -> struct(state, queue: serialize_queue(queue))
-      {:error, _reason} -> state
-    end
-  end
-
-  defp update_queue_state(state, queue) do
-    update_in(state.queue, &Map.merge(&1, serialize_queue(queue)))
   end
 
   defp diff_state(old, new) when is_map(old) and is_map(new) do
@@ -539,17 +500,6 @@ defmodule MusicCast.Network.Entity do
 
   defp serialize_status(status) do
     atomize_map(status)
-  end
-
-  defp serialize_queue(queue) do
-    {tracks, queue} =
-      queue
-      |> atomize_map()
-      |> Map.drop([:index, :max_line])
-      |> Map.pop(:track_info)
-    if tracks,
-      do: Map.put(queue, :tracks, Enum.map(tracks, &Map.fetch!(&1, "text"))),
-    else: queue
   end
 
   defp serialize_upnp_desc(upnp_desc) do
