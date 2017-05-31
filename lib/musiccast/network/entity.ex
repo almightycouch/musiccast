@@ -8,8 +8,6 @@ defmodule MusicCast.Network.Entity do
 
       iex> pid = MusicCast.whereis("00A0DEDCF73E")
       #PID<0.200.0>
-      iex> MusicCast.Network.Entity.__lookup__(pid, :status)
-      %{...}
 
   ## Synchronization
 
@@ -27,41 +25,65 @@ defmodule MusicCast.Network.Entity do
 
   require Logger
 
-  defstruct host: nil,
-            device_id: nil,
-            upnp: nil,
-            upnp_service: nil,
-            upnp_session_id: nil,
-            network_name: nil,
-            available_inputs: [],
-            status: nil,
-            playback: nil
+  defstruct [:host, :device_id, :upnp, :upnp_service, :upnp_session_id, :network_name, {:available_inputs, []}, :status, :playback]
 
   @type ip_address :: {0..255, 0..255, 0..255, 0..255}
 
   @type lookup_key ::
-    :host |
+    :available_inputs |
     :device_id |
+    :host |
+    :network_name |
+    :playback |
+    :status |
     :upnp |
     :upnp_service |
-    :upnp_session_id |
-    :network_name |
-    :available_inputs |
-    :status |
-    :playback
+    :upnp_session_id
 
   @type lookup_query :: :all | [lookup_key] | lookup_key
 
+  @type playback :: %{
+    album: String.t,
+    albumart_url: String.t,
+    artist: String.t,
+    input: String.t,
+    play_time: Integer.t,
+    playback: String.t,
+    repeat: String.t,
+    shuffle: String.t,
+    total_time: Integer.t,
+    track: String.t
+  }
+
+  @type status :: %{
+    balance: Integer.t,
+    bass_extension: boolean,
+    direct: boolean,
+    disable_flags: Integer.t,
+    distribution_enable: boolean,
+    enhancer: boolean,
+    equalizer: %{high: Integer.t, low: Integer.t, mid: Integer.t, mode: String.t},
+    input: String.t,
+    link_audio_delay: String.t,
+    link_control: String.t,
+    max_volume: Integer.t,
+    mute: boolean,
+    power: String.t,
+    sleep: Integer.t,
+    subwoofer_volume: Integer.t,
+    volume: Integer.t
+  }
+
   @type t :: %__MODULE__ {
-    host: String.t,
+    available_inputs: [String.t],
     device_id: String.t,
+    host: String.t,
+    network_name: String.t,
+    playback: playback,
+    status: status,
     upnp: AVTransport.t,
     upnp_service: Service.t,
-    upnp_session_id: String.t,
-    network_name: String.t,
-    available_inputs: [String.t],
-    status: Map.t,
-    playback: Map.t
+    upnp_session_id: String.t
   }
 
   @doc """
