@@ -116,6 +116,8 @@ defmodule MusicCast.UPnP.AVMusicTrack do
     info
     |> String.split(":")
     |> Enum.at(2)
+    |> String.split(";")
+    |> List.first()
   end
 end
 
