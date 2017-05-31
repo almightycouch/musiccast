@@ -35,19 +35,8 @@ defmodule MusicCast.Network.Entity do
             network_name: nil,
             available_inputs: [],
             status: nil,
-            playback: nil
-
-  @type t :: %__MODULE__ {
-    host: String.t,
-    device_id: String.t,
-    upnp: AVTransport.t,
-    upnp_service: Service.t,
-    upnp_session_id: String.t,
-    network_name: String.t,
-    available_inputs: [String.t],
-    status: %{},
-    playback: %{}
-  }
+            playback: nil,
+            queue: nil
 
   @type ip_address :: {0..255, 0..255, 0..255, 0..255}
 
@@ -60,9 +49,23 @@ defmodule MusicCast.Network.Entity do
     :network_name |
     :available_inputs |
     :status |
-    :playback
+    :playback |
+    :queue
 
   @type lookup_query :: :all | [lookup_key] | lookup_key
+
+  @type t :: %__MODULE__ {
+    host: String.t,
+    device_id: String.t,
+    upnp: AVTransport.t,
+    upnp_service: Service.t,
+    upnp_session_id: String.t,
+    network_name: String.t,
+    available_inputs: [String.t],
+    status: Map.t,
+    playback: Map.t,
+    queue: Map.t
+  }
 
   @doc """
   Starts an entity as part of a supervision tree.
@@ -141,8 +144,8 @@ defmodule MusicCast.Network.Entity do
 
   To get a list of available inputs from a specific device, see `__lookup__/2`.
   """
-  @spec select_input(pid, String.t) :: :ok | {:error, term}
-  def select_input(pid, input) do
+  @spec set_input(pid, String.t) :: :ok | {:error, term}
+  def set_input(pid, input) do
     GenServer.call(pid, {:extended_control_action, {:set_input, input}})
   end
 
@@ -250,6 +253,7 @@ defmodule MusicCast.Network.Entity do
          {:ok, upnp_desc} <- serialize_upnp_desc(upnp_desc),
          {:ok, status} <- YXC.get_status(host),
          {:ok, playback} <- YXC.get_playback_info(host),
+         {:ok, queue} <- fetch_queue(host),
          {:ok, session_id} <- upnp_subscribe(upnp_desc),
          {:ok, _} <- register_device(device_id, addr) do
       announce_device(%__MODULE__{
@@ -260,7 +264,8 @@ defmodule MusicCast.Network.Entity do
         network_name: network_name,
         available_inputs: Enum.map(system["input_list"], & &1["id"]),
         status: serialize_status(status),
-        playback: serialize_playback(playback, host)})
+        playback: serialize_playback(playback, host),
+        queue: serialize_queue(queue)})
     else
       {:error, reason} -> {:stop, reason}
     end
@@ -395,6 +400,16 @@ defmodule MusicCast.Network.Entity do
     end || {:ok, nil}
   end
 
+  defp fetch_queue(host, index \\ 0) do
+    case YXC.get_playback_queue(host, index: index) do
+      {:ok, %{index: ^index, max_line: size} = queue} when size > index + 8 ->
+        {:ok, Map.update!(queue, "track_info", &(&1 ++ fetch_queue(host, index + 8)))}
+      {:ok, queue} -> {:ok, queue}
+      {:error, reason} -> {:error, reason}
+
+    end
+  end
+
   defp update_state(%__MODULE__{} = state, %__MODULE__{} = new_state) do
     event_map = diff_state(Map.from_struct(state), Map.from_struct(new_state))
     unless map_size(event_map) == 0, do: broadcast_state_update(state.device_id, event_map)
@@ -414,17 +429,9 @@ defmodule MusicCast.Network.Entity do
   end
 
   defp update_state(state, %{play_queue: queue} = event) do
-    IO.inspect queue
     state
     |> update_state(Map.drop(event, [:play_queue]))
-  # |> update_playback_queue_state(queue)
-  end
-
-  defp update_state(state, %{play_queue_type: type} = event) do
-    IO.inspect type
-    state
-    |> update_state(Map.drop(event, [:play_queue_type]))
-  # |> update_playback_queue_state(type)
+    |> update_queue_state(queue)
   end
 
   defp update_state(state, %{signal_info_updated: true} = event) do
@@ -476,6 +483,24 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
+  defp update_queue_state(state, %{updated: true}) do
+    case fetch_queue(state.host) do
+      {:ok, queue} -> struct(state, queue: serialize_queue(queue))
+      {:error, _reason} -> state
+    end
+  end
+
+  defp update_queue_state(state, %{control: %{"success" => true}}) do
+    case fetch_queue(state.host) do
+      {:ok, queue} -> struct(state, queue: serialize_queue(queue))
+      {:error, _reason} -> state
+    end
+  end
+
+  defp update_queue_state(state, queue) do
+    update_in(state.queue, &Map.merge(&1, serialize_queue(queue)))
+  end
+
   defp diff_state(old, new) when is_map(old) and is_map(new) do
     old = if Map.has_key?(old, :__struct__), do: Map.from_struct(old), else: old
     new = if Map.has_key?(new, :__struct__), do: Map.from_struct(new), else: new
@@ -495,10 +520,14 @@ defmodule MusicCast.Network.Entity do
 
   defp atomize_map(map) do
     Enum.into(map, %{}, fn
-      {key, val} when is_map(val) ->
+      {key, val} when is_binary(key) and is_map(val) ->
         {String.to_atom(key), atomize_map(val)}
-      {key, val} ->
+      {key, val} when is_binary(key) ->
         {String.to_atom(key), val}
+      {key, val} when is_map(val) ->
+        {key, atomize_map(val)}
+      {key, val} ->
+        {key, val}
     end)
   end
 
@@ -510,6 +539,17 @@ defmodule MusicCast.Network.Entity do
 
   defp serialize_status(status) do
     atomize_map(status)
+  end
+
+  defp serialize_queue(queue) do
+    {tracks, queue} =
+      queue
+      |> atomize_map()
+      |> Map.drop([:index, :max_line])
+      |> Map.pop(:track_info)
+    if tracks,
+      do: Map.put(queue, :tracks, Enum.map(tracks, &Map.fetch!(&1, "text"))),
+    else: queue
   end
 
   defp serialize_upnp_desc(upnp_desc) do
