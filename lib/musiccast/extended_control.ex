@@ -7,8 +7,8 @@ defmodule MusicCast.ExtendedControl do
   [API Specification Rev. 1.00](https://www.google.com/search?as_epq=YXC_API_Spec_Basic.pdf&as_filetype=pdf)
   published by Yamaha in 2016.
 
-  Instead of using this module directly, you should use `MusicCast.Network` and `MusicCast.Network.Entity`
-  which provide a better abstraction to work with MusicCast devices.
+  *Instead of using this module directly, you should use `MusicCast.Network` and `MusicCast.Network.Entity`
+  which provide a better abstraction to work with MusicCast devices.*
   """
 
   @base_path "/YamahaExtendedControl/v1"
