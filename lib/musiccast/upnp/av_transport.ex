@@ -20,3 +20,25 @@ defmodule MusicCast.UPnP.AVTransport do
     super(control_url, instance_id, next_uri, AVMusicTrack.didl_encode([{next_uri, next_uri_meta_data}]))
   end
 end
+
+defimpl MusicCast.UPnP.Serializable, for: MusicCast.UPnP.AVTransport do
+
+  import MusicCast.UPnP.AVMusicTrack, only: [didl_decode: 1]
+
+  def cast(event) do
+    event
+    |> decode_didl(:current_track_meta_data)
+    |> decode_didl(:next_track_meta_data)
+    |> decode_didl(:av_transport_uri_meta_data)
+    |> decode_didl(:next_av_transport_uri_meta_data)
+  end
+
+  defp decode_didl(event, key) do
+    Map.update(event, key, nil, fn item ->
+      case didl_decode(item) do
+        [item] -> item
+         items -> items
+      end
+    end)
+  end
+end

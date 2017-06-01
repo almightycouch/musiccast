@@ -4,7 +4,7 @@ defmodule MusicCast.UPnP.Service do
 
   * It can automatically generate UPnP compliant clients from XML specifications.
   * It provides pub/sub cababilities to subscribe and forward UPnP event notifcations.
-
+  * It provides a mechanism to define custom behavior for specific notification types.
 
   ## Example
 
@@ -12,11 +12,16 @@ defmodule MusicCast.UPnP.Service do
         use MusicCast.UPnP.Service, type: "AVTransport:1"
       end
 
-  By default, the service will be generated from the `priv/<av_transport_1.xml>` file of the current application
+  By default, the service will be generated from the `priv/<transport_1.xml>` file of the current application
   but it can be configured to be any subdirectory of priv by specifying the `:priv` option.
+
+  The `MusicCast.UPnP.Serializable` protocol provides a way to define your own casting implementation
+  based on the concret event notification type. See `cast_event/2` for more details about event serialization.
   """
 
   import SweetXml
+
+  alias MusicCast.UPnP.Serializable
 
   defstruct [:device, :url, :version]
   @type t :: %__MODULE__{
@@ -54,7 +59,7 @@ defmodule MusicCast.UPnP.Service do
     }
   }
 
-  @type subscription :: {String.t, Integer.t}
+  @type subscription :: {id :: String.t, timeout :: Integer.t}
 
   @doc """
   Returns a map representing the UPnP service.
@@ -70,7 +75,7 @@ defmodule MusicCast.UPnP.Service do
   end
 
   @doc """
-  Calls an action on a UPnP service.
+  Execute the given `action` on the given UPnP service.
   """
   @spec call_action(String.t, String.t, String.t | Atom.t, Map.t) :: {:ok, term} | {:error, term}
   def call_action(control_url, service_type, action, params) do
@@ -93,6 +98,9 @@ defmodule MusicCast.UPnP.Service do
 
   @doc """
   Returns a service event struct from the given XML payload.
+
+  By implementing the `MusicCast.UPnP.Serializable` protocol for the given `service`,
+  you can provide your casting implementation. Have a look at `MusicCast.UPnP.AVTransport` for a concret example.
   """
   @spec cast_event(Module.t, String.t) :: Map.t
   def cast_event(service, payload) do
@@ -103,7 +111,8 @@ defmodule MusicCast.UPnP.Service do
     |> Enum.map(fn props -> {to_string(xmlElement(props, :name)), xpath(props, ~x"./@val"s)} end)
     |> Enum.map(fn {key, val} -> {String.to_atom(Macro.underscore(key)), val} end)
     |> Enum.map(fn {key, val} -> {key, cast_variable(val, Map.get(var, key))} end)
-    |> serialize_event(service)
+    |> materialize_event(service)
+    |> Serializable.cast()
   end
 
   @doc """
@@ -213,27 +222,8 @@ defmodule MusicCast.UPnP.Service do
       fn %{name: name, type: type} -> {String.to_atom(Macro.underscore(name)), String.to_atom(type)} end)
   end
 
-  defp serialize_event(props, MusicCast.UPnP.AVTransport = service) do
-    props =
-      props
-      |> decode_didl(:current_track_meta_data)
-      |> decode_didl(:next_track_meta_data)
-      |> decode_didl(:av_transport_uri_meta_data)
-      |> decode_didl(:next_av_transport_uri_meta_data)
+  defp materialize_event(props, service) do
     struct(service, props)
-  end
-
-  defp serialize_event(props, service) do
-    struct(service, props)
-  end
-
-  defp decode_didl(props, key) do
-    update_in(props, [key], fn item ->
-      case MusicCast.UPnP.AVMusicTrack.didl_decode(item) do
-        [item] -> item
-         items -> items
-      end
-    end)
   end
 
   defp envelope(body) do
