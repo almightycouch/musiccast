@@ -14,7 +14,13 @@ defmodule MusicCast.Network.EventDispatcher do
 	GenServer.start_link(__MODULE__, [], options)
   end
 
-  defdelegate stop(pid), to: GenServer
+  @doc """
+  Stops the event dispatcher process.
+  """
+  @spec stop(pid, term, timeout) :: :ok
+  def stop(pid, reason \\ :normal, timeout \\ :infinity) do
+    GenServer.stop(pid, reason, timeout)
+  end
 
   #
   # Callbacks

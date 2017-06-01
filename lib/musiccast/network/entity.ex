@@ -126,7 +126,13 @@ defmodule MusicCast.Network.Entity do
     GenServer.start_link(__MODULE__, {addr, upnp_desc}, options)
   end
 
-  defdelegate stop(pid), to: GenServer
+  @doc """
+  Stops the entity process.
+  """
+  @spec stop(pid, term, timeout) :: :ok
+  def stop(pid, reason \\ :normal, timeout \\ :infinity) do
+    GenServer.stop(pid, reason, timeout)
+  end
 
   @doc """
   Begins playback of the current track.
@@ -349,7 +355,8 @@ defmodule MusicCast.Network.Entity do
     cond do
       Enum.empty?(items) ->
         handle_call({:extended_control_action, {:set_playback, :previous}}, from, state)
-      {url, meta} = queue_previous(items, media, state) ->
+      previous = queue_previous(items, media, state) ->
+        {url, meta} = previous
         handle_call({:upnp_load, url, meta}, from, state)
       true ->
         {:reply, {:error, :wtf}, state}
@@ -363,7 +370,8 @@ defmodule MusicCast.Network.Entity do
     cond do
       Enum.empty?(items) ->
         handle_call({:extended_control_action, {:set_playback, :next}}, from, state)
-      {url, meta} = queue_next(items, media, state) ->
+      next = queue_next(items, media, state) ->
+        {url, meta} = next
         handle_call({:upnp_load, url, meta}, from, state)
       true ->
         {:reply, {:error, :wtf}, state}

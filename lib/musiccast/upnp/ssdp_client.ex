@@ -30,7 +30,13 @@ defmodule MusicCast.UPnP.SSDPClient do
     GenServer.start_link(__MODULE__, [], options)
   end
 
-  defdelegate stop(pid), to: GenServer
+  @doc """
+  Stops the SSDP client process.
+  """
+  @spec stop(pid, term, timeout) :: :ok
+  def stop(pid, reason \\ :normal, timeout \\ :infinity) do
+    GenServer.stop(pid, reason, timeout)
+  end
 
   @doc """
   Broadcasts a SSDP `M-SEARCH` request on the local network.

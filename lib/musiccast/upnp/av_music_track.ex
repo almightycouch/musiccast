@@ -17,7 +17,7 @@ defmodule MusicCast.UPnP.AVMusicTrack do
     mimetype: String.t,
   }
 
-  @type didl_item :: {String.t, t}
+  @type didl_item :: {url :: String.t, meta :: t}
 
   @doc """
   Returns a DIDL-Lite XML represention of the given `items`.

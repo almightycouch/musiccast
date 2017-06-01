@@ -31,7 +31,13 @@ defmodule MusicCast.Network do
     Supervisor.start_link(__MODULE__, [], options)
   end
 
-  defdelegate stop(pid), to: Supervisor
+  @doc """
+  Stops the event dispatcher process.
+  """
+  @spec stop(pid, term, timeout) :: :ok
+  def stop(pid, reason \\ :normal, timeout \\ :infinity) do
+    Supervisor.stop(pid, reason, timeout)
+  end
 
   @doc """
   Adds a new device entity to the network.
@@ -119,7 +125,9 @@ defmodule MusicCast.Network do
   #
 
   def init([]) do
-    children = List.wrap(worker(Entity, []))
+    children = [
+      worker(Entity, [], restart: :transient)
+    ]
     supervise(children, strategy: :simple_one_for_one)
   end
 
