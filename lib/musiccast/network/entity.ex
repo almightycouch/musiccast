@@ -25,18 +25,16 @@ defmodule MusicCast.Network.Entity do
 
   See `MusicCast.ExtendedControl` for more details.
 
-  On top of the commands provided by YXC, entities have the ability to control
-  UPnP A/V rendering devices. Functions such as `playback_load/3` and `playback_load_queue/2` provide
-  a way to load streamable content via an URL. This could be a file on the local filesystem or accessible
-  via a HTTP server.
+  On top of the commands provided by YXC, entities support the *UPnP A/V Transport* protocol. Functions such as `playback_load/3` and
+  `playback_load_queue/2` provide a way to load streamable content via an URL.
 
   Gapless playback can be achieved with a combination of `playback_load/3` and `playback_load_next/3`.
   The latter basically tells the rendering devices which source to play next.
 
-  See `MusicCast.UPnP.AVTransport` for more details.
-
   To play multiple items, consider using `playback_load_queue/2`, it handles "previous" and "next" commands automatically,
   ensures gapless playback and supports "repeat" and "shuffle" modes.
+
+  See `MusicCast.UPnP.AVTransport` for more details.
   """
 
   use GenServer
@@ -208,7 +206,7 @@ defmodule MusicCast.Network.Entity do
   end
 
   @doc """
-  Sets the power state to "on" or "standby".
+  Sets the power status to "on" or "standby".
   """
   @spec set_power(pid, String.t) :: :ok | {:error, term}
   def set_power(pid, power) do

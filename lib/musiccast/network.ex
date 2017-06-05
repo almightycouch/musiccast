@@ -32,7 +32,7 @@ defmodule MusicCast.Network do
   end
 
   @doc """
-  Stops the event dispatcher process.
+  Stops the network supervisor.
   """
   @spec stop(pid, term, timeout) :: :ok
   def stop(pid, reason \\ :normal, timeout \\ :infinity) do
