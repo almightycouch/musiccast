@@ -208,6 +208,14 @@ defmodule MusicCast.Network.Entity do
   end
 
   @doc """
+  Sets the power state to "on" or "standby".
+  """
+  @spec set_power(pid, String.t) :: :ok | {:error, term}
+  def set_power(pid, power) do
+    GenServer.call(pid, {:extended_control_action, {:set_power, power}})
+  end
+
+  @doc """
   Selects the given `input`.
 
   To get a list of available inputs from a specific device, see `__lookup__/2`.
