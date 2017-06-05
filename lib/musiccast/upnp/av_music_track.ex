@@ -47,7 +47,7 @@ defmodule MusicCast.UPnP.AVMusicTrack do
   """
   @spec dlna_protocol_info(String.t) :: String.t
   def dlna_protocol_info(mimetype)
-  def dlna_protocol_info("audio/mp4"), do: "http-get:*:audio/mp4:DLNA.ORG_PN=AAC_ISO_320"
+  def dlna_protocol_info("audio/mp4"), do: "http-get:*:audio/mp4:DLNA.ORG_PN=AAC_ISO_320;DLNA.ORG_FLAGS=9D300000000000000000000000000000"
   def dlna_protocol_info(mimetype) when is_binary(mimetype), do: "http-get:*:#{mimetype}"
   def dlna_protocol_info(nil), do: ""
 
