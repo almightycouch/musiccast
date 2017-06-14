@@ -43,6 +43,31 @@ defmodule MusicCast.UPnP.AVMusicTrack do
   end
 
   @doc """
+  Returns a "hh:mm:ss" formated string for the given number of seconds.
+  """
+  @spec encode_duration(Integer.t) :: String.t
+  def encode_duration(duration) do
+    hours = :io_lib.format("~2..0B", [div(duration, 3_600)])
+    minutes = :io_lib.format("~2..0B", [div(duration, 60)])
+    seconds = :io_lib.format("~2..0B", [Integer.mod(duration, 60)])
+    "#{hours}:#{minutes}:#{seconds}"
+  end
+
+  @doc """
+  Returns the number of seconds for the given "hh:mm:ss" formated `duration` string.
+  """
+  @spec decode_duration(String.t) :: Integer.t
+  def decode_duration(duration) do
+    unless String.length(duration) == 0 do
+      [h, m, s] =
+        duration
+        |> String.split(":")
+        |> Enum.map(&String.to_integer/1)
+      (h * 3_600) + (m * 60) + s
+    end || 0
+  end
+
+  @doc """
   Returns the DLNA protocol info for the given audio `mimetype`.
   """
   @spec dlna_protocol_info(String.t) :: String.t
@@ -93,23 +118,6 @@ defmodule MusicCast.UPnP.AVMusicTrack do
       duration: ~x"./res/@duration"s,
       protocol: ~x"./res/@protocolInfo"s]
     )
-  end
-
-  defp encode_duration(duration) do
-    hours = :io_lib.format("~1..0B", [div(duration, 3_600)])
-    minutes = :io_lib.format("~2..0B", [div(duration, 60)])
-    seconds = :io_lib.format("~2..0B", [Integer.mod(duration, 60)])
-    "#{hours}:#{minutes}:#{seconds}"
-  end
-
-  defp decode_duration(str) do
-    unless String.length(str) == 0 do
-      [h, m, s] =
-        str
-        |> String.split(":")
-        |> Enum.map(&String.to_integer/1)
-      (h * 3_600) + (m * 60) + s
-    end || 0
   end
 
   defp extract_mimetype(info) do

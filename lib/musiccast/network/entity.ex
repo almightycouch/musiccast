@@ -23,7 +23,7 @@ defmodule MusicCast.Network.Entity do
   Extended Control or "YXC" is Yamaha’s communication protocol sent over Ethernet and Wi-Fi to
   control MusicCast™ devices. Each entity provides a set of functions for interacting with a device.
 
-  See `MusicCast.ExtendedControl` for more details.
+  See `MusicCast.ExtendedControl` for the full list of supported commands.
 
   On top of the commands provided by YXC, entities support the *UPnP A/V Transport* protocol. Functions such as `playback_load/3` and
   `playback_load_queue/2` provide a way to load streamable content via an URL.
@@ -179,6 +179,14 @@ defmodule MusicCast.Network.Entity do
   @spec playback_pause(pid) :: :ok | {:error, term}
   def playback_pause(pid) do
     GenServer.call(pid, {:extended_control_action, {:set_playback, :pause}})
+  end
+
+  @doc """
+  Seeks the current track to the given `position`.
+  """
+  @spec playback_seek(pid, Integer.t) :: :ok | {:error, term}
+  def playback_seek(pid, position) do
+    GenServer.call(pid, {:upnp_seek, AVMusicTrack.encode_duration(position)})
   end
 
   @doc """
@@ -418,6 +426,16 @@ defmodule MusicCast.Network.Entity do
   def handle_call({:upnp_load_next, url, meta}, _from, state) do
     service = av_transport_service(state.upnp_service.device)
     case AVTransport.set_next_av_transport_uri(service.control_url, 0, url, meta) do
+      :ok ->
+        {:reply, :ok, state}
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  def handle_call({:upnp_seek, pos}, _from, state) do
+    service = av_transport_service(state.upnp_service.device)
+    case AVTransport.seek(service.control_url, 0, "ABS_TIME", pos) do
       :ok ->
         {:reply, :ok, state}
       {:error, reason} ->
