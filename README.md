@@ -26,14 +26,14 @@ end
 
 ## Usage
 
-MusicCast devices are automatically discovered and added to `MusicCast.Network`, you can list all registered devices as follow:
+You can list available devices as follow:
 
 ```elixir
 iex> [{pid, device_id}] = MusicCast.which_devices()
 [{#PID<0.200.0>, "00A0DEDCF73E"}]
 ```
 
-You can control a device using the `MusicCast.Network.Entity` module:
+Use the `MusicCast.Network.Entity` module to control a MusicCast device:
 
 ```elixir
 iex> MusicCast.Network.Entity.set_input(pid, "spotify")
@@ -44,7 +44,7 @@ iex> MusicCast.Network.Entity.set_volume(pid, 50)
 :ok
 ```
 
-You also have the possibility to subscribe to status update notifications from a specific device:
+To subscribe to update notifications from a device use `MusicCast.Network.subscribe/1`:
 
 ```elixir
 iex> MusicCast.subscribe(device_id)
