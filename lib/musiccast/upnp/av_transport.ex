@@ -28,7 +28,6 @@ defimpl MusicCast.UPnP.Serializable, for: MusicCast.UPnP.AVTransport do
   def cast(event) do
     event
     |> decode_didl(:current_track_meta_data)
-    |> decode_didl(:next_track_meta_data)
     |> decode_didl(:av_transport_uri_meta_data)
     |> decode_didl(:next_av_transport_uri_meta_data)
   end
