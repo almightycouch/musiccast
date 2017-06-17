@@ -458,7 +458,7 @@ defmodule MusicCast.Network.Entity do
     case YXC.get_status(state.host, headers: YXC.subscription_headers()) do
       {:ok, status} ->
         renew_subscription(target, YXC.subscription_timeout())
-        {:noreply, struct(state, status: status)}
+        {:noreply, struct(state, status: serialize_status(status))}
       {:error, reason} ->
         {:stop, reason, state}
     end
@@ -492,8 +492,13 @@ defmodule MusicCast.Network.Entity do
     new_state =
       state
       |> diff_state(new_state)
-      |> get_in([:upnp, :av_transport_uri])
-      |> upnp_next(new_state)
+      |> get_in([:upnp, :current_track_uri])
+      |> upnp_load_next(new_state)
+    new_state =
+      state
+      |> diff_state(new_state)
+      |> get_in([:upnp, :current_track_duration])
+      |> upnp_update_duration(new_state)
     {:noreply, update_state(state, new_state)}
   end
 
@@ -519,8 +524,8 @@ defmodule MusicCast.Network.Entity do
     Registry.register(MusicCast.Registry, device_id, addr)
   end
 
-  defp upnp_next(nil, state), do: state
-  defp upnp_next(media_url, state) do
+  defp upnp_load_next(nil, state), do: state
+  defp upnp_load_next(media_url, state) do
     state = put_in(state.upnp_queue.media_url, media_url)
     items = state.upnp_queue.items
     if next = queue_next(items, media_url, state) do
@@ -528,6 +533,11 @@ defmodule MusicCast.Network.Entity do
       handle_call({:upnp_load_next, url, meta}, {self(), make_ref()},  state)
     end
     state
+  end
+
+  defp upnp_update_duration(nil, state), do: state
+  defp upnp_update_duration(duration, state) do
+    put_in(state.playback.total_time, AVMusicTrack.decode_duration(duration))
   end
 
   defp renew_subscription(target, timeout) do
