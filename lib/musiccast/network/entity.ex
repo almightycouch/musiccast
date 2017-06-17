@@ -50,7 +50,7 @@ defmodule MusicCast.Network.Entity do
               :network_name,
               :status,
               :playback,
-             {:playback_queue, %{media_url: nil, items: []}},
+             {:upnp_queue, %{media_url: nil, items: []}},
               :upnp,
               :upnp_service,
               :upnp_session_id]
@@ -63,9 +63,9 @@ defmodule MusicCast.Network.Entity do
     :host |
     :network_name |
     :playback |
-    :playback_queue |
     :status |
     :upnp |
+    :upnp_queue |
     :upnp_service |
     :upnp_session_id
 
@@ -109,9 +109,9 @@ defmodule MusicCast.Network.Entity do
     host: String.t,
     network_name: String.t,
     playback: playback,
-    playback_queue: %{media_url: String.t, items: [AVMusicTrack.didl_item]},
     status: status,
     upnp: AVTransport.t,
+    upnp_queue: %{media_url: String.t, items: [AVMusicTrack.didl_item]},
     upnp_service: Service.t,
     upnp_session_id: String.t
   }
@@ -364,8 +364,8 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_call(:load_previous, from, state) do
-    items = state.playback_queue.items
-    media = state.playback_queue.media_url
+    items = state.upnp_queue.items
+    media = state.upnp_queue.media_url
     cond do
       previous = queue_previous(items, media, state) ->
         {url, meta} = previous
@@ -376,8 +376,8 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_call(:load_next, from, state) do
-    items = state.playback_queue.items
-    media = state.playback_queue.media_url
+    items = state.upnp_queue.items
+    media = state.upnp_queue.media_url
     cond do
       next = queue_next(items, media, state) ->
         {url, meta} = next
@@ -388,7 +388,7 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_call(:stop_playback, from, state) do
-    unless Enum.empty?(state.playback_queue.items),
+    unless Enum.empty?(state.upnp_queue.items),
       do: handle_call(:upnp_stop, from, state),
     else: handle_call({:extended_control_action, {:set_playback, :stop}}, from, state)
   end
@@ -403,7 +403,7 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_call({:upnp_load_queue, items}, from, state) do
-    new_state = update_state(state, put_in(state.playback_queue.items, items))
+    new_state = update_state(state, put_in(state.upnp_queue.items, items))
       if item = List.first(items) do
         {url, meta} = item
         handle_call({:upnp_load, url, meta}, from, new_state)
@@ -417,8 +417,8 @@ defmodule MusicCast.Network.Entity do
     with :ok <- AVTransport.stop(service.control_url, 0),
          :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, meta),
          :ok <- AVTransport.play(service.control_url, 0, 1) do
-      broadcast_state_update(state.device_id, %{playback_queue: %{media_url: nil}})
-      {:reply, :ok, put_in(state.playback_queue.media_url, nil)}
+      broadcast_state_update(state.device_id, %{upnp_queue: %{media_url: nil}})
+      {:reply, :ok, put_in(state.upnp_queue.media_url, nil)}
     else
       error -> {:reply, error, state}
     end
@@ -521,8 +521,8 @@ defmodule MusicCast.Network.Entity do
 
   defp upnp_next(nil, state), do: state
   defp upnp_next(media_url, state) do
-    state = put_in(state.playback_queue.media_url, media_url)
-    items = state.playback_queue.items
+    state = put_in(state.upnp_queue.media_url, media_url)
+    items = state.upnp_queue.items
     if next = queue_next(items, media_url, state) do
       {url, meta} = next
       handle_call({:upnp_load_next, url, meta}, {self(), make_ref()},  state)
@@ -547,10 +547,10 @@ defmodule MusicCast.Network.Entity do
     end || {:ok, nil}
   end
 
+  defp queue_get([], _media_url, _state, _fun), do: nil
+  defp queue_get(_items, _media_url, %{playback: %{input: input}}, _fun) when input != "server", do: nil
   defp queue_get(items, media_url, state, fun) do
     cond do
-      Enum.empty?(items) ->
-        nil
       state.playback.shuffle == "on" ->
         Enum.random(items)
       index = Enum.find_index(items, fn {url, _meta} -> url == media_url end) ->
@@ -731,6 +731,6 @@ defmodule MusicCast.Network.Entity do
   end
 
   defp materialize(state) do
-    update_in(state.playback_queue.items, &Enum.into(&1, %{}))
+    update_in(state.upnp_queue.items, &Enum.into(&1, %{}))
   end
 end
