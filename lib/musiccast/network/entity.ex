@@ -194,7 +194,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_stop(pid) :: :ok | {:error, term}
   def playback_stop(pid) do
-    GenServer.call(pid, {:extended_control_action, {:set_playback, :stop}})
+    GenServer.call(pid, :stop_playback)
   end
 
   @doc """
@@ -367,29 +367,30 @@ defmodule MusicCast.Network.Entity do
     items = state.playback_queue.items
     media = state.playback_queue.media_url
     cond do
-      Enum.empty?(items) ->
-        handle_call({:extended_control_action, {:set_playback, :previous}}, from, state)
       previous = queue_previous(items, media, state) ->
         {url, meta} = previous
         handle_call({:upnp_load, url, meta}, from, state)
       true ->
-        {:reply, {:error, :wtf}, state}
+        handle_call({:extended_control_action, {:set_playback, :previous}}, from, state)
     end
   end
-
 
   def handle_call(:load_next, from, state) do
     items = state.playback_queue.items
     media = state.playback_queue.media_url
     cond do
-      Enum.empty?(items) ->
-        handle_call({:extended_control_action, {:set_playback, :next}}, from, state)
       next = queue_next(items, media, state) ->
         {url, meta} = next
         handle_call({:upnp_load, url, meta}, from, state)
       true ->
-        {:reply, {:error, :wtf}, state}
+        handle_call({:extended_control_action, {:set_playback, :next}}, from, state)
     end
+  end
+
+  def handle_call(:stop_playback, from, state) do
+    unless Enum.empty?(state.playback_queue.items),
+      do: handle_call(:upnp_stop, from, state),
+    else: handle_call({:extended_control_action, {:set_playback, :stop}}, from, state)
   end
 
   def handle_call({:extended_control_action, {fun, args}}, _from, state) do
@@ -492,7 +493,7 @@ defmodule MusicCast.Network.Entity do
       state
       |> diff_state(new_state)
       |> get_in([:upnp, :av_transport_uri])
-      |> sync_next(new_state)
+      |> upnp_next(new_state)
     {:noreply, update_state(state, new_state)}
   end
 
@@ -518,8 +519,8 @@ defmodule MusicCast.Network.Entity do
     Registry.register(MusicCast.Registry, device_id, addr)
   end
 
-  defp sync_next(nil, state), do: state
-  defp sync_next(media_url, state) do
+  defp upnp_next(nil, state), do: state
+  defp upnp_next(media_url, state) do
     state = put_in(state.playback_queue.media_url, media_url)
     items = state.playback_queue.items
     if next = queue_next(items, media_url, state) do
