@@ -217,9 +217,9 @@ defmodule MusicCast.UPnP.Service do
   end
 
   defp serialize_props(props) do
-    Enum.filter_map(props,
-      fn %{name: name} -> !String.starts_with?(name, "A_ARG") end,
-      fn %{name: name, type: type} -> {String.to_atom(Macro.underscore(name)), String.to_atom(type)} end)
+    props
+    |> Enum.filter(fn %{name: name} -> !String.starts_with?(name, "A_ARG") end)
+    |> Enum.map(fn %{name: name, type: type} -> {String.to_atom(Macro.underscore(name)), String.to_atom(type)} end)
   end
 
   defp materialize_event(props, service) do

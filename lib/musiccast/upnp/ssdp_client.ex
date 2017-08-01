@@ -151,7 +151,8 @@ defmodule MusicCast.UPnP.SSDPClient do
     packet
     |> String.split(["\r\n", "\n"])
     |> Enum.map(&String.split(&1, ":", parts: 2))
-    |> Enum.filter_map(& length(&1) == 2, fn [key, val] -> {atomize_string(key), String.strip(val)} end)
+    |> Enum.filter(&(length(&1) == 2))
+    |> Enum.map(fn [key, val] -> {atomize_string(key), String.trim(val)} end)
     |> Enum.into(%{})
   end
 
