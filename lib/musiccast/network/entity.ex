@@ -17,24 +17,6 @@ defmodule MusicCast.Network.Entity do
 
   In order to receive UPnP A/V notification from MusicCast™ devices via UPnP A/V,
   you must forward the `MusicCast.UPnP.Plug.EventDispatcher` plug in your HTTP stack and configure your application accordingly.
-
-  ## YXC & UPnP
-
-  Extended Control or "YXC" is Yamaha’s communication protocol sent over Ethernet and Wi-Fi to
-  control MusicCast™ devices. Each entity provides a set of functions for interacting with a device.
-
-  See `MusicCast.ExtendedControl` for the full list of supported commands.
-
-  On top of the commands provided by YXC, entities support the *UPnP A/V Transport* protocol. Functions such as `playback_load/3` and
-  `playback_load_queue/2` provide a way to load streamable content via an URL.
-
-  Gapless playback can be achieved with a combination of `playback_load/3` and `playback_load_next/3`.
-  The latter basically tells the rendering devices which source to play next.
-
-  To play multiple items, consider using `playback_load_queue/2`, it handles "previous" and "next" commands automatically,
-  ensures gapless playback and supports "repeat" and "shuffle" modes.
-
-  See `MusicCast.UPnP.AVTransport` for more details.
   """
 
   use GenServer
@@ -50,8 +32,6 @@ defmodule MusicCast.Network.Entity do
               :network_name,
               :status,
               :playback,
-             {:upnp_queue, %{media_url: nil, items: []}},
-              :upnp,
               :upnp_service,
               :upnp_session_id]
 
@@ -64,8 +44,6 @@ defmodule MusicCast.Network.Entity do
     :network_name |
     :playback |
     :status |
-    :upnp |
-    :upnp_queue |
     :upnp_service |
     :upnp_session_id
 
@@ -110,8 +88,6 @@ defmodule MusicCast.Network.Entity do
     network_name: String.t,
     playback: playback,
     status: status,
-    upnp: AVTransport.t,
-    upnp_queue: %{media_url: String.t, items: [AVMusicTrack.didl_item]},
     upnp_service: Service.t,
     upnp_session_id: String.t
   }
@@ -138,17 +114,6 @@ defmodule MusicCast.Network.Entity do
   @spec playback_play(pid) :: :ok | {:error, term}
   def playback_play(pid) do
     GenServer.call(pid, {:extended_control_action, {:set_playback, :play}})
-  end
-
-  @doc """
-  Loads the given list of `items` and immediately begins playback.
-
-  All given `items` must conform to `t:MusicCast.UPnP.AVMusicTrack.didl_item/0`.
-  """
-  @spec playback_load_queue(pid, [Enum.t]) :: :ok | {:error, term}
-  def playback_load_queue(pid, items) do
-    didl_items = Enum.map(items, fn {url, meta} -> {url, struct(AVMusicTrack, meta)} end)
-    GenServer.call(pid, {:upnp_load_queue, didl_items})
   end
 
   @doc """
@@ -194,7 +159,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_stop(pid) :: :ok | {:error, term}
   def playback_stop(pid) do
-    GenServer.call(pid, :stop_playback)
+    GenServer.call(pid, {:extended_control_action, {:set_playback, :stop}})
   end
 
   @doc """
@@ -202,7 +167,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_previous(pid) :: :ok | {:error, term}
   def playback_previous(pid) do
-    GenServer.call(pid, :load_previous)
+    GenServer.call(pid, {:extended_control_action, {:set_playback, :previous}})
   end
 
   @doc """
@@ -210,7 +175,7 @@ defmodule MusicCast.Network.Entity do
   """
   @spec playback_next(pid) :: :ok | {:error, term}
   def playback_next(pid) do
-    GenServer.call(pid, :load_next)
+    GenServer.call(pid, {:extended_control_action, {:set_playback, :next}})
   end
 
   @doc """
@@ -352,45 +317,14 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_call({:lookup, :all}, _from, state) do
-    {:reply, materialize(state), state}
+    {:reply, state, state}
   end
 
   def handle_call({:lookup, keys}, _from, state) do
-    materialized_state = materialize(state)
-    attrs = for key <- List.wrap(keys), Map.has_key?(materialized_state, key), do: Map.fetch!(materialized_state, key)
+    attrs = for key <- List.wrap(keys), Map.has_key?(state, key), do: Map.fetch!(state, key)
     if is_list(keys),
       do: {:reply, attrs, state},
     else: {:reply, List.first(attrs), state}
-  end
-
-  def handle_call(:load_previous, from, state) do
-    items = state.upnp_queue.items
-    media = state.upnp_queue.media_url
-    cond do
-      previous = queue_previous(items, media, state) ->
-        {url, meta} = previous
-        handle_call({:upnp_load, url, meta}, from, state)
-      true ->
-        handle_call({:extended_control_action, {:set_playback, :previous}}, from, state)
-    end
-  end
-
-  def handle_call(:load_next, from, state) do
-    items = state.upnp_queue.items
-    media = state.upnp_queue.media_url
-    cond do
-      next = queue_next(items, media, state) ->
-        {url, meta} = next
-        handle_call({:upnp_load, url, meta}, from, state)
-      true ->
-        handle_call({:extended_control_action, {:set_playback, :next}}, from, state)
-    end
-  end
-
-  def handle_call(:stop_playback, from, state) do
-    unless Enum.empty?(state.upnp_queue.items),
-      do: handle_call(:upnp_stop, from, state),
-    else: handle_call({:extended_control_action, {:set_playback, :stop}}, from, state)
   end
 
   def handle_call({:extended_control_action, {fun, args}}, _from, state) do
@@ -402,23 +336,12 @@ defmodule MusicCast.Network.Entity do
     end
   end
 
-  def handle_call({:upnp_load_queue, items}, from, state) do
-    new_state = update_state(state, put_in(state.upnp_queue.items, items))
-      if item = List.first(items) do
-        {url, meta} = item
-        handle_call({:upnp_load, url, meta}, from, new_state)
-      else
-        {:reply, :ok, new_state}
-    end
-  end
-
   def handle_call({:upnp_load, url, meta}, _from, state) do
     service = av_transport_service(state.upnp_service.device)
     with :ok <- AVTransport.stop(service.control_url, 0),
          :ok <- AVTransport.set_av_transport_uri(service.control_url, 0, url, meta),
          :ok <- AVTransport.play(service.control_url, 0, 1) do
-      broadcast_state_update(state.device_id, %{upnp_queue: %{media_url: nil}})
-      {:reply, :ok, put_in(state.upnp_queue.media_url, nil)}
+      {:reply, :ok, state}
     else
       error -> {:reply, error, state}
     end
@@ -487,19 +410,8 @@ defmodule MusicCast.Network.Entity do
     {:noreply, state}
   end
 
-  def handle_info({:upnp_event, payload}, state) do
-    new_state = put_in(state.upnp, payload)
-    new_state =
-      state
-      |> diff_state(new_state)
-      |> get_in([:upnp, :current_track_uri])
-      |> upnp_load_next(new_state)
-    new_state =
-      state
-      |> diff_state(new_state)
-      |> get_in([:upnp, :current_track_duration])
-      |> upnp_update_duration(new_state)
-    {:noreply, update_state(state, new_state)}
+  def handle_info({:upnp_event, _payload}, state) do
+    {:noreply, state}
   end
 
   #
@@ -524,22 +436,6 @@ defmodule MusicCast.Network.Entity do
     Registry.register(MusicCast.Registry, device_id, addr)
   end
 
-  defp upnp_load_next(nil, state), do: state
-  defp upnp_load_next(media_url, state) do
-    state = put_in(state.upnp_queue.media_url, media_url)
-    items = state.upnp_queue.items
-    if next = queue_next(items, media_url, state) do
-      {url, meta} = next
-      handle_call({:upnp_load_next, url, meta}, {self(), make_ref()},  state)
-    end
-    state
-  end
-
-  defp upnp_update_duration(nil, state), do: state
-  defp upnp_update_duration(duration, state) do
-    put_in(state.playback.total_time, AVMusicTrack.decode_duration(duration))
-  end
-
   defp renew_subscription(target, timeout) do
     Process.send_after(self(), {:subscription_timeout, target}, max(0, timeout - 2) * 1_000)
   end
@@ -556,21 +452,6 @@ defmodule MusicCast.Network.Entity do
       end
     end || {:ok, nil}
   end
-
-  defp queue_get([], _media_url, _state, _fun), do: nil
-  defp queue_get(_items, _media_url, %{playback: %{input: input}}, _fun) when input != "server", do: nil
-  defp queue_get(items, media_url, state, fun) do
-    cond do
-      state.playback.shuffle == "on" ->
-        Enum.random(items)
-      index = Enum.find_index(items, fn {url, _meta} -> url == media_url end) ->
-        Enum.at(items, fun.(index), List.last(items))
-      true -> nil
-    end
-  end
-
-  defp queue_previous(items, media_url, state), do: queue_get(items, media_url, state, &(&1 - 1))
-  defp queue_next(items, media_url, state), do: queue_get(items, media_url, state, &(&1 + 1))
 
   defp update_state(%__MODULE__{} = state, %__MODULE__{} = new_state) do
     event_map = diff_state(Map.from_struct(state), Map.from_struct(new_state))
@@ -738,9 +619,5 @@ defmodule MusicCast.Network.Entity do
       |> update_in([:event_sub_url], &Kernel.<>(base_url, &1))
       |> update_in([:scpd_url], &Kernel.<>(base_url, &1))
     end)
-  end
-
-  defp materialize(state) do
-    update_in(state.upnp_queue.items, &Enum.into(&1, %{}))
   end
 end
