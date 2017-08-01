@@ -40,11 +40,11 @@ defmodule MusicCast.Mixfile do
   end
 
   defp deps do
-    [{:httpoison, "~> 0.11"},
+    [{:httpoison, "~> 0.12"},
      {:poison, "~> 3.1"},
      {:sweet_xml, "~> 0.6"},
      {:html_entities, "~> 0.3"},
-     {:plug, "~> 1.3", optional: true},
-     {:ex_doc, "~> 0.14", only: :dev, runtime: false}]
+     {:plug, "~> 1.4", optional: true},
+     {:ex_doc, "~> 0.16", only: :dev, runtime: false}]
   end
 end
