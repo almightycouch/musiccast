@@ -329,7 +329,7 @@ defmodule MusicCast.Network.Entity do
 
   def init({addr, upnp_desc}) do
     with host <- to_string(:inet_parse.ntoa(addr)),
-         {:ok, %{"device_id" => device_id}} <- YXC.get_device_info(host, headers: YXC.subscription_headers()),
+         {:ok, %{"device_id" => device_id}} <- YXC.get_device_info(host),
          {:ok, %{"network_name" => network_name}} <- YXC.get_network_status(host),
          {:ok, %{"system" => system}} <- YXC.get_features(host),
          {:ok, upnp_desc} <- serialize_upnp_desc(upnp_desc),
@@ -455,9 +455,9 @@ defmodule MusicCast.Network.Entity do
   end
 
   def handle_info({:subscription_timeout, :extended_control = target}, state) do
-    case YXC.get_status(state.host, headers: YXC.subscription_headers()) do
+    case YXC.get_status(state.host) do
       {:ok, status} ->
-        renew_subscription(target, YXC.subscription_timeout())
+        renew_subscription(target, 600)
         {:noreply, struct(state, status: serialize_status(status))}
       {:error, reason} ->
         {:stop, reason, state}
@@ -507,7 +507,7 @@ defmodule MusicCast.Network.Entity do
   #
 
   defp announce_device(%__MODULE__{} = state) do
-    renew_subscription(:extended_control, YXC.subscription_timeout())
+    renew_subscription(:extended_control, 600)
     Registry.dispatch(MusicCast.PubSub, "network", fn subscribers ->
       for {pid, nil} <- subscribers, do: send(pid, {:musiccast, :online, state})
     end)
@@ -541,7 +541,7 @@ defmodule MusicCast.Network.Entity do
   end
 
   defp renew_subscription(target, timeout) do
-    Process.send_after(self(), {:subscription_timeout, target}, max(0, timeout - 3) * 1_000)
+    Process.send_after(self(), {:subscription_timeout, target}, max(0, timeout - 2) * 1_000)
   end
 
   defp upnp_subscribe(upnp_desc) do

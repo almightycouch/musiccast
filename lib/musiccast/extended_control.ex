@@ -333,18 +333,6 @@ defmodule MusicCast.ExtendedControl do
   """
   def toggle_cd_shuffle(host, options \\ []), do: request_api(host, "/cd/toggleShuffle", options)
 
-  @doc """
-  Returns the HTTP headers required to subscribe to YXC events.
-  """
-  def subscription_headers do
-    [{"X-AppName", "MusicCast/1.50"}, {"X-AppPort", 41100}]
-  end
-
-  @doc """
-  Return the timeout after a MusicCast device will stop sending YXC events.
-  """
-  def subscription_timeout, do: 300
-
   #
   # Helpers
   #
@@ -354,7 +342,9 @@ defmodule MusicCast.ExtendedControl do
     {headers, options}   = Keyword.pop(options, :headers, [])
     {base_path, options} = Keyword.pop(options, :base_path, @base_path)
 
-    case HTTPoison.request(method, host <> base_path <> path, "", headers, options) do
+    musiccast_headers = [{"X-AppName", "MusicCast/1.50"}, {"X-AppPort", 41100}]
+
+    case HTTPoison.request(method, host <> base_path <> path, "", headers ++ musiccast_headers, options) do
       {:ok, %HTTPoison.Response{body: body, status_code: status}} when status in 200..299 ->
         with {:ok, response} <- Poison.decode(body),
              {:ok, response} <- process_response_code(response), do:
